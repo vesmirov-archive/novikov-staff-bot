@@ -1,0 +1,14 @@
+# environment
+.venv
+venv
+.env
+env
+
+# python
+__pycache__/
+
+# vscode
+.vscode
+
+# credentials
+credentials.json
