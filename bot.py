@@ -6,6 +6,7 @@ import pygsheets
 from dotenv import dotenv_values
 
 from service import db
+from service import spredsheet
 
 env = dotenv_values('.env')
 
@@ -33,18 +34,48 @@ DENY_ANONIMUS = (
     'что вам нужен доступ.'
 )
 DENY_REGISTERED = 'У вас недостаточно прав для выполнение данной команды.'
+ADDING_USER_MESSAGE = (
+    'Отправьте данные добавляемого сотрудника в следующем формате:\n'
+    '<telegram_ID_пользователя> <никнейм> <имя> '
+    '<фамилия> <функционал> <админ_доступ_(да/нет)>\n\n'
+    'При указании функционала сотрудника выберите одно из значений:\n'
+    'руководство, помощь, продажи, делопроизводство, '
+    'исполнительное делопроизводство\n\n'
+    'Пример:\n'
+    '123456789 ivanov Иван Иванов продажи нет'
+)
 HELP = (
     'Команды:\n'
     '/users - отобразить список пользователей\n'
-    '/adduser - добавить пользователя'
+    '/adduser - добавить пользователя\n'
+    '/kpi - обновить свои показатели KPI за сегодняшний день\n'
+    '/day - показать KPI отдела делопроизводства за сегодняшний день'
 )
-POSITIONS = [
-    'руководство',
-    'помощь',
-    'продажи',
-    'делопроизводство',
-    'исполнительное делопроизводство',
-]
+POSITIONS = {
+    'руководство': None,
+    'помощь': None,
+    'продажи': None,
+    'делопроизводство': {
+        'message': (
+            'Как прошел рабочий день?\n\n'
+            'Отправьте количественные данные в следующем формате:\n' +
+            '<заседаний> <решений> <написанных_исков> '
+            '<поданных_исков> <иных_документов> <штрафов>\n'
+            'Пример: 3 2 0 1 0 0'
+        ),
+        'values_amount': 6,
+    },
+    'исполнительное делопроизводство': {
+        'message': (
+            'Как прошел рабочий день?\n\n'
+            'Отправьте количественные данные в следующем формате:\n'
+            '<заседаний> <решений> <получено_листов> '
+            '<подано_листов> <иных_документов> <штрафов>\n'
+            'Пример: 5 1 2 2 0 0'
+        ),
+        'values_amount': 6,
+    }
+}
 
 
 def permission_check(func):
@@ -57,7 +88,7 @@ def permission_check(func):
         if db.user_has_permissions(cursor, message.from_user.id):
             func(message)
         else:
-            bot.send_message(message.from_user.id, START_ANONIMUS)
+            bot.send_message(message.from_user.id, DENY_ANONIMUS)
     return inner
 
 
@@ -76,9 +107,10 @@ connect, cursor = db.connect_database(env)
 
 
 markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
+kpi_btn = telebot.types.InlineKeyboardButton('/kpi')
+today_btn = telebot.types.InlineKeyboardButton('/day')
 users_btn = telebot.types.KeyboardButton('/users')
-help_btn = telebot.types.InlineKeyboardButton('/help')
-markup.add(users_btn, help_btn)
+markup.add(kpi_btn, today_btn, users_btn)
 
 
 @bot.message_handler(commands=['start'])
@@ -86,7 +118,7 @@ markup.add(users_btn, help_btn)
 def send_welcome(message):
     user_id = message.from_user.id
     name = message.from_user.first_name
-    bot.send_message(user_id, START.format(name))
+    bot.send_message(user_id, START.format(name), reply_markup=markup)
 
 
 @bot.message_handler(commands=['help'])
@@ -106,17 +138,7 @@ def send_list_users(message):
 @permission_check
 @is_admin_check
 def start_adding_user(message):
-    message = bot.send_message(
-        message.from_user.id,
-        'Отправьте данные добавляемого сотрудника в следующем формате:\n'
-        '<ID_пользователя> <никнейм> <имя> '
-        '<фамилия> <функционал> <админ_доступ_(да/нет)>\n\n'
-        'При указании функционала сотрудника выберите одно из значений:\n'
-        'руководство, помощь, продажи, делопроизводство, '
-        'исполнительное делопроизводство\n\n'
-        'Пример:\n'
-        '123456789 ivanov Иван Иванов продажи нет'
-    )
+    message = bot.send_message(message.from_user.id, ADDING_USER_MESSAGE)
     bot.register_next_step_handler(message, adding_user)
 
 
@@ -141,7 +163,7 @@ def adding_user(message):
         except ValueError:
             bot.send_message(
                 message.from_user.id, 'Неверный формат.')
-        finally:
+        else:
             db.add_user(cursor, connect, user_id, username,
                         firstname, lastname, position, is_admin)
             bot.send_message(
@@ -153,37 +175,73 @@ def adding_user(message):
 @bot.message_handler(commands=['kpi'])
 @permission_check
 def start_kpi_check(message):
-    message = bot.send_message(
-        message.from_user.id,
-        'Как прошел сегодняшний рабочий день?\n\n'
-        'Отправьте данные в следующем формате:\n'
-        '<заседаний> <решений> <написано_исков> '
-        '<подано_исков> <количество_штрафов>\n'
-        'Пример: 3 2 0 1 0'
-    )
-    bot.register_next_step_handler(message, kpi_check)
+    position = db.get_employee_position(cursor, message.from_user.id)
+    
+    if POSITIONS[position]:
+        try:
+            kwargs = {
+                'position': position,
+                'text': POSITIONS[position]['message'],
+                'response_len': POSITIONS[position]['values_amount'],
+            }
+            message = bot.send_message(message.from_user.id, kwargs['text'])
+            bot.register_next_step_handler(message, kpi_check, **kwargs)
+        except (ValueError, KeyError):
+            bot.send_message(
+                message.from_user.id,
+                'Что-то пошло не так. Свяжитесь с @vilagov.'
+            )
+    else:
+        bot.send_message(
+            message.from_user.id,
+            'На данный период ваш KPI не отслеживается ботом.'
+        )
 
 
-def kpi_check(message):
+def kpi_check(message, **kwargs):
     values = message.text.split()
 
-    if len(values) < 5:
+    if len(values) < kwargs['response_len']:
         bot.send_message(message.from_user.id, 'Указаны не все показатели.')
-    elif len(values) > 5:
+    elif len(values) > kwargs['response_len']:
         bot.send_message(message.from_user.id, 'Указаны лишние показатели.')
     else:
         for i in values:
             if not i.isnumeric():
                 bot.send_message(
-                    message.from_user.id, 'Неверный формат.')
+                    message.from_user.id,
+                    'Ответ должен быть количетсвенным и состоять из чисел.'
+                )
                 return
-        position = get_employee_position(cursor, message.from_user.id)
-        data = {
-            'user_id': message.from_user.id,
-            'position': position,
-            'values': values
-        }
-        write_KPI_to_google_sheet(manager, SHEET_KEY, WORKSHEET_ID, data)
+        status = spredsheet.write_KPI_to_google_sheet(
+            manager,
+            SHEET_KEY,
+            WORKSHEET_ID,
+            message.from_user.id,
+            kwargs['position'],
+            values
+        )
+        if status:
+            bot.send_message(
+                message.from_user.id,
+                'Данные внесены. Хорошего вечера!'
+            )
+        else:
+            bot.send_message(
+                message.from_user.id,
+                'Кажется вас не добавили в таблицу.\n'
+                'Уведомите разработчиков.'
+            )
+
+
+@bot.message_handler(commands=['day'])
+@permission_check
+def day_statistic(message):
+    kpi_daily = spredsheet.get_daily_statistic(manager, SHEET_KEY, WORKSHEET_ID)
+    statistic = ['Статистика за день\n']
+    for key, value in kpi_daily.items():
+        statistic.append(f'{key}: {value}')
+    bot.send_message(message.from_user.id, '\n'.join(statistic))
 
 
 bot.polling()
