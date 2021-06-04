@@ -102,13 +102,13 @@ def permission_check(func):
     return inner
 
 
-def is_admin_check(func):
-    def inner(message):
-        if db.user_is_admin_check(cursor, message.from_user.id):
-            func(message)
-        else:
-            bot.send_message(message.from_user.id, DENY_STAFF_MESSAGE)
-    return inner
+# def is_admin_check(func):
+#     def inner(message):
+#         if db.user_is_admin_check(cursor, message.from_user.id):
+#             func(message)
+#         else:
+#             bot.send_message(message.from_user.id, DENY_STAFF_MESSAGE)
+#     return inner
 
 
 bot = telebot.TeleBot(TOKEN)
@@ -139,7 +139,6 @@ def send_help_text(message):
 
 @bot.message_handler(commands=['users'])
 @permission_check
-@is_admin_check
 def send_list_users(message):
     users = db.list_users(cursor)
     bot.send_message(message.from_user.id, users)
@@ -147,7 +146,6 @@ def send_list_users(message):
 
 @bot.message_handler(commands=['adduser'])
 @permission_check
-@is_admin_check
 def start_adding_user(message):
     message = bot.send_message(message.from_user.id, ADDING_USER_MESSAGE)
     bot.register_next_step_handler(message, adding_user)
@@ -191,7 +189,6 @@ def adding_user(message):
 
 @bot.message_handler(commands=['deluser'])
 @permission_check
-@is_admin_check
 def start_deleting_user(message):
     message = bot.send_message(message.from_user.id, DELETING_USER_MESSAGE)
     bot.register_next_step_handler(message, deleting_user)
