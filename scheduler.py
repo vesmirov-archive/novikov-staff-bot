@@ -10,10 +10,10 @@ cron = CronTab(user=USER)
 cron.env['HOME'] = os.getcwd()
 cron.env['PATH'] = os.getcwd()
 
-# notify = cron.new(command='.venv/bin/python notifier.py')
-# notify.setall('0 22 * * *')
+notify = cron.new(command='.venv/bin/python notifier.py')
+notify.setall('0 20 * * 1-5')
 
-# update = cron.new(command='.venv/bin/python updater.py')
-# update.setall('0 20 * * *')
+update = cron.new(command='.venv/bin/python updater.py -a true')
+update.setall('0 21 * * 1-5')
 
 cron.write()
