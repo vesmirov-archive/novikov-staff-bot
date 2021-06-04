@@ -31,31 +31,15 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
         return True
 
 
-def get_KPI_from_google_sheet(manager, sheet_key, page_id):
-    sheet = manager.open_by_key(sheet_key)
-    page = sheet.worksheet('id', page_id)
-    diff = datetime.date.today() - START_DATE
-    row = str(diff.days + ROW_SHIFT)
-
-    data = {}
-    for category in CATEGORIES_READ:
-        data[category] = {}
-        for value in CATEGORIES_READ[category]:
-            cell = CATEGORIES_READ[category][value] + row
-            content = page.get_value(cell)
-            data[category].update({value: content})
-    return data
-
-
 def check_if_already_filled(manager, sheet_key, page_id, user_id, position):
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
     row = str(diff.days + ROW_SHIFT)
-    
+
     cells = map(
         lambda x: x + row,
-        EMPLOYEES['подразделения'][position]['сотрудники'][user_id]['KPI'].values()  # noqa
+        EMPLOYEES['подразделения'][position]['сотрудники'][str(user_id)]['KPI'].values()  # noqa
     )
     for cell in cells:
         value = page.get_value(cell)
@@ -71,7 +55,7 @@ def get_daily_statistic(manager, sheet_key, page_id):
     row = str(diff.days + ROW_SHIFT)
 
     values = {}
-    for name, column in EMPLOYEES['сводка']['KPI'].items():
+    for name, column in EMPLOYEES['сводка']['KPI день'].items():
         values[name] = page.get_value(column + row)
     return values
 
