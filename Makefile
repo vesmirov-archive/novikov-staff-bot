@@ -4,11 +4,20 @@ start:
 prepare:
 	poetry run python prepare.py
 
-notify:
-	poetry run python notifier.py
-
 day:
-	poetry run python notifier.py -a true
+	poetry run python notifier.py -c day
+
+week:
+	poetry run python notifier.py -c week
+
+first-notify:
+	poetry run python notifier.py -c kpi-first
+
+second-notify:
+	poetry run python notifier.py -c kpi-second
+
+lawsuits:
+	poetry run python notifier.py -c lawsuits
 
 lint:
 	poetry run flake8

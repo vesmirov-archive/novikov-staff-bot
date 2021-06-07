@@ -32,7 +32,7 @@ POSITIONS = {
             '<иных_документов>\n'
             '<денег_получено>\n'
             '<событий_съедающих_бонус>\n\n'
-            'Пример: 3 2 0 1 55000 0'
+            'Пример: 3 2 0 1 320000 0'
         ),
         'values_amount': 6,
     },
@@ -48,7 +48,7 @@ POSITIONS = {
             '<напр_заявл_по_суд_расходам>\n'
             '<иных_документов>\n'
             '<денег_получено>\n\n'
-            'Пример: 5 2 2 2 1 55000 0'
+            'Пример: 5 2 2 2 1 320000 0'
         ),
         'values_amount': 7,
     }
@@ -83,8 +83,12 @@ HELP_MESSAGE = (
     '/users - отобразить список пользователей (admin)\n'
     '/adduser - добавить пользователя (admin)\n'
     '/deluser - удалить пользователя (admin)\n'
-    '/kpi - обновить свои показатели KPI за сегодняшний день\n'
-    '/day - показать KPI отдела делопроизводства за сегодняшний день'
+    '/kpi - зафиксировать KPI за сегодняшний день\n'
+    '/day - показать KPI отдела делопроизводства за сегодняшний день\n',
+    '/week - показать KPI отдела делопроизводства за текущую неделю\n',
+    '/lawsuits - зафиксировать количество поданных исков за текущую неделю\n',
+    '/leader - показать "красавчика" дня '
+    '(набравшего больше всего баллов за день)\n'
 )
 
 
@@ -102,13 +106,13 @@ def permission_check(func):
     return inner
 
 
-# def is_admin_check(func):
-#     def inner(message):
-#         if db.user_is_admin_check(cursor, message.from_user.id):
-#             func(message)
-#         else:
-#             bot.send_message(message.from_user.id, DENY_STAFF_MESSAGE)
-#     return inner
+def user_is_admin_check(func):
+    def inner(message):
+        if db.user_is_admin_check(cursor, message.from_user.id):
+            func(message)
+        else:
+            bot.send_message(message.from_user.id, DENY_STAFF_MESSAGE)
+    return inner
 
 
 bot = telebot.TeleBot(TOKEN)
@@ -119,8 +123,10 @@ connect, cursor = db.connect_database(env)
 markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
 kpi_btn = telebot.types.InlineKeyboardButton('/kpi')
 today_btn = telebot.types.InlineKeyboardButton('/day')
-week_check = telebot.types.InlineKeyboardButton('/lawsuits')
-markup.add(kpi_btn, today_btn, week_check)
+week_btn = telebot.types.InlineKeyboardButton('/week')
+lawsuits = telebot.types.InlineKeyboardButton('/lawsuits')
+leader = telebot.types.InlineKeyboardButton('/leader')
+markup.add(kpi_btn, today_btn, week_btn, leader, lawsuits)
 
 
 @bot.message_handler(commands=['start'])
@@ -139,6 +145,7 @@ def send_help_text(message):
 
 @bot.message_handler(commands=['users'])
 @permission_check
+@user_is_admin_check
 def send_list_users(message):
     users = db.list_users(cursor)
     bot.send_message(message.from_user.id, users)
@@ -146,6 +153,7 @@ def send_list_users(message):
 
 @bot.message_handler(commands=['adduser'])
 @permission_check
+@user_is_admin_check
 def start_adding_user(message):
     message = bot.send_message(message.from_user.id, ADDING_USER_MESSAGE)
     bot.register_next_step_handler(message, adding_user)
@@ -189,6 +197,7 @@ def adding_user(message):
 
 @bot.message_handler(commands=['deluser'])
 @permission_check
+@user_is_admin_check
 def start_deleting_user(message):
     message = bot.send_message(message.from_user.id, DELETING_USER_MESSAGE)
     bot.register_next_step_handler(message, deleting_user)
@@ -281,6 +290,58 @@ def day_statistic(message):
     for key, value in kpi_daily.items():
         statistic.append(f'{key}: {value}')
     bot.send_message(message.from_user.id, '\n'.join(statistic))
+
+
+@bot.message_handler(commands=['week'])
+@permission_check
+def week_statistic(message):
+    kpi_daily = spredsheet.get_weekly_statistic(
+        manager, SHEET_KEY, WORKSHEET_ID)
+    statistic = ['Статистика за неделю\n']
+    for key, value in kpi_daily.items():
+        statistic.append(f'{key}: {value}')
+    bot.send_message(message.from_user.id, '\n'.join(statistic))
+
+
+@bot.message_handler(commands=['lawsuits'])
+@permission_check
+@user_is_admin_check
+def start_week_lawsuits(message):
+    bot.send_message(
+        message.from_user.id,
+        f'Привет {message.from_user.first_name}!\n'
+        'Сколько было подано исков на этой неделе?'
+    )
+    bot.register_next_step_handler(message, week_lawsuits)
+
+
+def week_lawsuits(message):
+    if message.text.isnumeric():
+        status = spredsheet.write_lawsuits_to_google_sheet(
+            manager, SHEET_KEY, WORKSHEET_ID, message.text)
+        if status:
+            bot.send_message(message.from_user.id, 'Спасибо! Данные внесены.')
+        else:
+            bot.send_message(message.from_user.id, 'Что-то пошло не так.')
+    else:
+        bot.send_message(
+            message.from_user.id,
+            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные '
+            'в числовом формате.'
+        )
+
+
+@bot.message_handler(commands=['leader'])
+@permission_check
+def show_the_leader(message):
+    leaders = spredsheet.get_leaders_from_google_sheet(
+        manager, SHEET_KEY, WORKSHEET_ID)
+
+    if leaders:
+        bot.send_message(
+            message.from_user.id, 'Красавчики дня:\n' + ', '.join(leaders))
+    else:
+        bot.send_message(message.from_user.id, 'Красавчиков дня нет')
 
 
 bot.polling()

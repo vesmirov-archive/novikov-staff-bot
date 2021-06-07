@@ -31,10 +31,10 @@ def user_is_admin_check(cursor, user_id):
     """Check if given id saved in databse"""
 
     cursor.execute(
-        f"SELECT user_id, is_admin FROM employees WHERE user_id = {user_id}")
+        f"SELECT is_admin FROM employees WHERE user_id = {user_id}")
     rows = cursor.fetchall()
     for row in rows:
-        if row[1]:
+        if row:
             return True
     return False
 

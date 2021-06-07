@@ -31,6 +31,19 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
         return True
 
 
+def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+    diff = datetime.date.today() - START_DATE
+    row = str(diff.days - datetime.date.today().weekday() + ROW_SHIFT)
+    col = EMPLOYEES['сводка']['KPI неделя']['исков подано']
+
+    page.update_value(col + row, value)
+
+    # for future exeptions
+    return True
+
+
 def check_if_already_filled(manager, sheet_key, page_id, user_id, position):
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
@@ -60,5 +73,40 @@ def get_daily_statistic(manager, sheet_key, page_id):
     return values
 
 
+def get_weekly_statistic(manager, sheet_key, page_id):
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+    diff = datetime.date.today() - START_DATE
+    row = str(diff.days - datetime.date.today().weekday() + ROW_SHIFT)
+
+    values = {}
+    for name, column in EMPLOYEES['сводка']['KPI неделя'].items():
+        values[name] = page.get_value(column + row)
+    return values
+
+
 def get_recipients_list():
     return EMPLOYEES['рассылка'].values()
+
+
+def get_leaders_from_google_sheet(manager, sheet_key, page_id):
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+    diff = datetime.date.today() - START_DATE
+    row = str(diff.days - datetime.date.today().weekday() + ROW_SHIFT)
+
+    people = {}
+    for name, col in EMPLOYEES['сводка']['молодцы'].items():
+        people[name] = int(page.get_value(col + row))
+
+    leaders = []
+    max_points = 0
+    for points in people.values():
+        if points > max_points:
+            max_points = points
+
+    if max_points:
+        for name, points in people.items():
+            if points == max_points:
+                leaders.append(name)
+    return leaders
