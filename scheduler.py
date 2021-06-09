@@ -7,7 +7,7 @@ USER = getpass.getuser()
 
 
 cron = CronTab(user=USER)
-cron['PATH'] = f'/home/{USER}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'  # noqa
+cron.env['PATH'] = f'/home/{USER}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'  # noqa
 
 cwd = os.getcwd()
 
