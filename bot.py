@@ -311,13 +311,23 @@ def kpi_check(message, **kwargs):
 @permission_check
 def day_statistic(message):
     """Send users values for today"""
-
-    kpi_daily = spredsheet.get_daily_statistic(
+    bot.send_message(
+        message.from_user.id,
+        'Минуту, собираю данные.\n'
+        'Обычно это занимает не больше 20 секунд \U0001f552'
+    )
+    kpi_daily = spredsheet.get_daily_statistic_of_employee_in_division(
         manager, SHEET_KEY, WORKSHEET_ID)
-    statistic = ['Статистика за день\n']
-    for key, value in kpi_daily.items():
-        statistic.append(f'{key}: {value}')
-    bot.send_message(message.from_user.id, '\n'.join(statistic))
+    
+    result = ['Статистика за день \U0001f4c6:\n']
+
+    for name, values in kpi_daily.items():
+        result.append(f'\U0001f464 {name}\n')
+        for key, value in values.items():
+            result.append(f'{key}: {value}')
+        result.append('')
+
+    bot.send_message(message.from_user.id, '\n'.join(result))
 
 
 @bot.message_handler(regexp=r'неделя\S*')
@@ -327,7 +337,7 @@ def week_statistic(message):
 
     kpi_daily = spredsheet.get_weekly_statistic(
         manager, SHEET_KEY, WORKSHEET_ID)
-    statistic = ['Статистика за неделю\n']
+    statistic = ['Статистика за неделю \U0001f5d3:\n']
     for key, value in kpi_daily.items():
         statistic.append(f'{key}: {value}')
     bot.send_message(message.from_user.id, '\n'.join(statistic))
