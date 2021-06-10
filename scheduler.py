@@ -23,13 +23,13 @@ def main():
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c kpi-second')  # noqa
     notify.setall('30 20 * * 1-5')
 
-    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c day')  # noqa
+    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c day')  # noqa
     update.setall('0 21 * * 1-5')
 
-    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c week')  # noqa
+    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week')  # noqa
     update.setall('5 21 * * 5')
 
-    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c lawsuits')  # noqa
+    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c lawsuits')  # noqa
     update.setall('0 18 * * 5')
 
     cron.write()
