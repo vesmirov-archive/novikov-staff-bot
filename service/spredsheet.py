@@ -86,7 +86,10 @@ def get_daily_statistic(manager, sheet_key, page_id):
 
 
 def get_daily_statistic_of_employee_in_division(
-        manager, sheet_key, page_id, division="делопроизводство"
+        manager,
+        sheet_key,
+        page_id,
+        divisions=["делопроизводство", "исполнение"]
     ):
     """Get every employee value for today"""
 
@@ -96,11 +99,12 @@ def get_daily_statistic_of_employee_in_division(
     row = str(diff.days + ROW_SHIFT)
 
     values = {}
-    for employee in EMPLOYEES['подразделения'][division]['сотрудники'].values():
-        full_name = employee['имя'] + ' ' + employee['фамилия']
-        values[full_name] = {}
-        for value, col in employee['KPI'].items():
-            values[full_name][value] = page.get_value(col + row)
+    for division in divisions:
+        for employee in EMPLOYEES['подразделения'][division]['сотрудники'].values():
+            full_name = employee['имя'] + ' ' + employee['фамилия']
+            values[full_name] = {}
+            for value, col in employee['KPI'].items():
+                values[full_name][value] = page.get_value(col + row)
     values['Общее'] = get_daily_statistic(manager, sheet_key, page_id)
     
     return values
