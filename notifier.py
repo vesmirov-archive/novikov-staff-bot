@@ -97,16 +97,19 @@ def send_daily_results(bot, manager):
         user_id = user[0]
 
         if user_id in EMPLOYEES['рассылка'].values():
-            kpi_daily = spredsheet.get_daily_statistic(
+            kpi_daily = spredsheet.get_daily_statistic_of_employee_in_division(
                 manager, SHEET_KEY, WORKSHEET_ID)
 
             leaders = spredsheet.get_leaders_from_google_sheet(
                 manager, SHEET_KEY, WORKSHEET_ID)
 
-            statistic = ['Сводка за день\n']
-            for key, value in kpi_daily.items():
-                statistic.append(f'{key}: {value}')
-            bot.send_message(user_id, '\n'.join(statistic))
+            result = ['Итоги дня \U0001f4ca:\n']
+            for name, values in kpi_daily.items():
+                result.append(f'\U0001f464 {name}\n')
+                for key, value in values.items():
+                    result.append(f'{key}: {value}')
+                result.append('')
+            bot.send_message(user_id, '\n'.join(result))
 
             if leaders:
                 bot.send_message(user_id, 'Красавчики дня:\n' + ', '.join(leaders))
