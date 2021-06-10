@@ -108,10 +108,10 @@ def send_daily_results(bot, manager):
                 statistic.append(f'{key}: {value}')
             bot.send_message(user_id, '\n'.join(statistic))
 
-        if leaders:
-            bot.send_message(user_id, 'Красавчики дня:\n' + ', '.join(leaders))
-        else:
-            bot.send_message(user_id, 'Красавчиков дня нет')
+            if leaders:
+                bot.send_message(user_id, 'Красавчики дня:\n' + ', '.join(leaders))
+            else:
+                bot.send_message(user_id, 'Красавчиков дня нет')
 
     connect.close()
 
