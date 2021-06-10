@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+"""
+    Create database and add first values
+"""
+
 import psycopg2
 from dotenv import dotenv_values
 

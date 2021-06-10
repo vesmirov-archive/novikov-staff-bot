@@ -1,3 +1,12 @@
+"""
+    Notifies users through a specific way (flags):
+    '-c day' -- send day statistic
+    '-c week' -- send week statistic
+    '-c kpi-first' -- send first kpi notification
+    '-c kpi-second' -- send second kpi notification
+    '-c lawsuits' -- send lawsuits notification
+"""
+
 import argparse
 import json
 
@@ -18,13 +27,13 @@ with open('employees.json', 'r') as file:
     EMPLOYEES = json.loads(file.read())
 
 # telegram
-TOKEN = env.get('TELEGRAM_TOKEN')
+TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 CHAT = env.get('TELEGRAM_CHAT_ID')
 
 # google
 SHEET_KEY = env.get('SHEET_KEY')
 WORKSHEET_ID = env.get('WORKSHEET_ID')
-SERVICE_FILE = env.get('SERVICE_FILE')
+CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
 # messages
 KPI_MESSAGE = (
@@ -46,7 +55,6 @@ LAWSUITS_MESSAGE = (
     'исков за неделю.\n\nВнести данные можно через /lawsuits'
 )
 
-
 # employees with next positions will be notified
 TRACKED_POSITIONS = [
     'делопроизводство',
@@ -55,6 +63,8 @@ TRACKED_POSITIONS = [
 
 
 def remind_to_send_kpi(bot, manager, second=False):
+    """Notifications abount sending KPI values"""
+
     connect, cursor = db.connect_database(env)
     cursor.execute("SELECT user_id, position, firstname FROM employees")
     users = cursor.fetchall()
@@ -77,6 +87,8 @@ def remind_to_send_kpi(bot, manager, second=False):
 
 
 def send_daily_results(bot, manager):
+    """Sends daily results"""
+
     connect, cursor = db.connect_database(env)
     cursor.execute("SELECT user_id FROM employees")
     users = cursor.fetchall()
@@ -105,6 +117,8 @@ def send_daily_results(bot, manager):
 
 
 def send_weekly_results(bot, manager):
+    """Sends weekly results"""
+
     connect, cursor = db.connect_database(env)
     cursor.execute("SELECT user_id FROM employees")
     users = cursor.fetchall()
@@ -126,6 +140,8 @@ def send_weekly_results(bot, manager):
 
 
 def remind_to_send_lawsuits(bot):
+    """Notifications abount sending lawsuits"""
+
     ids = map(str, EMPLOYEES['иски'].values())
 
     connect, cursor = db.connect_database(env)
@@ -142,8 +158,10 @@ def remind_to_send_lawsuits(bot):
 
 
 def main():
+    """Notification manager"""
+
     bot = telebot.TeleBot(TOKEN)
-    manager = pygsheets.authorize(service_file=SERVICE_FILE)
+    manager = pygsheets.authorize(client_secret=CLIENT_SECRET_FILE)
 
     if args.config == 'day':
         send_daily_results(bot, manager)

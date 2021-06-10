@@ -1,3 +1,7 @@
+"""
+    Bot's module with specified commands
+"""
+
 import telebot
 import pygsheets
 from dotenv import dotenv_values
@@ -9,13 +13,13 @@ env = dotenv_values('.env')
 
 
 # telegram
-TOKEN = env.get('TELEGRAM_TOKEN')
+TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 CHAT = env.get('TELEGRAM_CHAT_ID')
 
 # google
 SHEET_KEY = env.get('SHEET_KEY')
 WORKSHEET_ID = env.get('WORKSHEET_ID')
-SERVICE_FILE = env.get('SERVICE_FILE')
+CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
 # positions
 POSITIONS = {
@@ -56,14 +60,14 @@ POSITIONS = {
 
 # messages
 START_MESSAGE = (
-    'Привет {}! Я бот юридического центра Новиков.\n'
+    u'Привет, {}! \U0001f60a Я бот юридического центра Новиков.\n'
     'Я собираю статистику сотрудников, просчитываю их KPI и '
     'фиксирую данные в Google Sheets.\n'
     'По любым вопросам можно обратиться к '
     '@vilagov или @karlos979.'
 )
 DENY_ANONIMUS_MESSAGE = (
-    'У вас нет прав для использования данного бота.\n'
+    'У вас нет прав для пользования данным бота.\n'
     'Обратитесь к @vilagov или @karlos979, если уверены '
     'что вам нужен доступ.'
 )
@@ -83,19 +87,13 @@ HELP_MESSAGE = (
     '/users - отобразить список пользователей (admin)\n'
     '/adduser - добавить пользователя (admin)\n'
     '/deluser - удалить пользователя (admin)\n'
-    '/kpi - зафиксировать KPI за сегодняшний день\n'
-    '/day - показать KPI отдела делопроизводства за сегодняшний день\n',
-    '/week - показать KPI отдела делопроизводства за текущую неделю\n',
-    '/lawsuits - зафиксировать количество поданных исков за текущую неделю\n',
-    '/leader - показать "красавчика" дня '
-    '(набравшего больше всего баллов за день)\n'
 )
 
 
 def permission_check(func):
     """
     User permission check decorator.
-    If user id not in database, send 'deny access' message.
+    If user id not in database, send 'deny access' message
     """
 
     def inner(message):
@@ -107,6 +105,8 @@ def permission_check(func):
 
 
 def user_is_admin_check(func):
+    """Admin permission check decorator"""
+
     def inner(message):
         if db.user_is_admin_check(cursor, message.from_user.id):
             func(message)
@@ -116,22 +116,24 @@ def user_is_admin_check(func):
 
 
 bot = telebot.TeleBot(TOKEN)
-manager = pygsheets.authorize(service_file=SERVICE_FILE)
+manager = pygsheets.authorize(client_secret=CLIENT_SECRET_FILE)
 connect, cursor = db.connect_database(env)
 
-
-markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
-kpi_btn = telebot.types.InlineKeyboardButton('/kpi')
-today_btn = telebot.types.InlineKeyboardButton('/day')
-week_btn = telebot.types.InlineKeyboardButton('/week')
-lawsuits = telebot.types.InlineKeyboardButton('/lawsuits')
-leader = telebot.types.InlineKeyboardButton('/leader')
-markup.add(kpi_btn, today_btn, week_btn, leader, lawsuits)
+markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
+kpi_btn = telebot.types.InlineKeyboardButton('показатели \U0001f3af')
+today_btn = telebot.types.InlineKeyboardButton('день \U0001f4c6')
+week_btn = telebot.types.InlineKeyboardButton('неделя \U0001f5d3')
+lawsuits = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
+leader = telebot.types.InlineKeyboardButton('красавчик \U0001f38a')
+announce = telebot.types.InlineKeyboardButton('объявление \U0001f4ef')
+markup.add(kpi_btn, leader, today_btn, week_btn, lawsuits, announce)
 
 
 @bot.message_handler(commands=['start'])
 @permission_check
 def send_welcome(message):
+    """Greet user"""
+
     user_id = message.from_user.id
     name = message.from_user.first_name
     bot.send_message(user_id, START_MESSAGE.format(name), reply_markup=markup)
@@ -140,6 +142,8 @@ def send_welcome(message):
 @bot.message_handler(commands=['help'])
 @permission_check
 def send_help_text(message):
+    """Send help-text to user"""
+
     bot.send_message(message.from_user.id, HELP_MESSAGE)
 
 
@@ -147,6 +151,8 @@ def send_help_text(message):
 @permission_check
 @user_is_admin_check
 def send_list_users(message):
+    """Show all added users to this bot"""
+
     users = db.list_users(cursor)
     bot.send_message(message.from_user.id, users)
 
@@ -155,11 +161,15 @@ def send_list_users(message):
 @permission_check
 @user_is_admin_check
 def start_adding_user(message):
+    """Add user to this bot"""
+
     message = bot.send_message(message.from_user.id, ADDING_USER_MESSAGE)
     bot.register_next_step_handler(message, adding_user)
 
 
 def adding_user(message):
+    """User adding process"""
+
     data = message.text.split()
 
     if len(data) != 6:
@@ -199,11 +209,15 @@ def adding_user(message):
 @permission_check
 @user_is_admin_check
 def start_deleting_user(message):
+    """Delete user"""
+
     message = bot.send_message(message.from_user.id, DELETING_USER_MESSAGE)
     bot.register_next_step_handler(message, deleting_user)
 
 
 def deleting_user(message):
+    """User deleting process"""
+
     user_id = message.text
 
     if not user_id.isnumeric():
@@ -219,9 +233,11 @@ def deleting_user(message):
         )
 
 
-@bot.message_handler(commands=['kpi'])
+@bot.message_handler(regexp=r'показатели\S*')
 @permission_check
 def start_kpi_check(message):
+    """Get today's values from user"""
+
     position = db.get_employee_position(cursor, message.from_user.id)
 
     if POSITIONS[position]:
@@ -241,23 +257,33 @@ def start_kpi_check(message):
     else:
         bot.send_message(
             message.from_user.id,
-            'На данный период ваш KPI не отслеживается ботом.'
+            'На данный период ваш KPI '
+            'не отслеживается ботом \U0001f44c\U0001f3fb'
         )
 
 
 def kpi_check(message, **kwargs):
+    """Values getting process"""
+
     values = message.text.split()
 
     if len(values) < kwargs['response_len']:
-        bot.send_message(message.from_user.id, 'Указаны не все показатели.')
+        bot.send_message(
+            message.from_user.id,
+            'Указаны не все показатели \u261d\U0001f3fb'
+        )
     elif len(values) > kwargs['response_len']:
-        bot.send_message(message.from_user.id, 'Указаны лишние показатели.')
+        bot.send_message(
+            message.from_user.id,
+            'Указаны лишние показатели \u261d\U0001f3fb'
+        )
     else:
         for i in values:
             if not i.isnumeric():
                 bot.send_message(
                     message.from_user.id,
-                    'Ответ должен быть количетсвенным и состоять из чисел.'
+                    'Ответ должен быть количетсвенным '
+                    'и состоять из чисел \u261d\U0001f3fb'
                 )
                 return
         status = spredsheet.write_KPI_to_google_sheet(
@@ -271,7 +297,7 @@ def kpi_check(message, **kwargs):
         if status:
             bot.send_message(
                 message.from_user.id,
-                'Данные внесены. Хорошего вечера!'
+                'Данные внесены \u2705\nХорошего вечера! \U0001f942'
             )
         else:
             bot.send_message(
@@ -281,9 +307,11 @@ def kpi_check(message, **kwargs):
             )
 
 
-@bot.message_handler(commands=['day'])
+@bot.message_handler(regexp=r'день\S*')
 @permission_check
 def day_statistic(message):
+    """Send users values for today"""
+
     kpi_daily = spredsheet.get_daily_statistic(
         manager, SHEET_KEY, WORKSHEET_ID)
     statistic = ['Статистика за день\n']
@@ -292,9 +320,11 @@ def day_statistic(message):
     bot.send_message(message.from_user.id, '\n'.join(statistic))
 
 
-@bot.message_handler(commands=['week'])
+@bot.message_handler(regexp=r'неделя\S*')
 @permission_check
 def week_statistic(message):
+    """Send users values for all week"""
+
     kpi_daily = spredsheet.get_weekly_statistic(
         manager, SHEET_KEY, WORKSHEET_ID)
     statistic = ['Статистика за неделю\n']
@@ -303,10 +333,12 @@ def week_statistic(message):
     bot.send_message(message.from_user.id, '\n'.join(statistic))
 
 
-@bot.message_handler(commands=['lawsuits'])
+@bot.message_handler(regexp=r'иски\S*')
 @permission_check
 @user_is_admin_check
 def start_week_lawsuits(message):
+    """Get specific value from user (lawsuits)"""
+
     bot.send_message(
         message.from_user.id,
         f'Привет {message.from_user.first_name}!\n'
@@ -316,32 +348,87 @@ def start_week_lawsuits(message):
 
 
 def week_lawsuits(message):
+    """Value getting process (lawsuits)"""
+
     if message.text.isnumeric():
         status = spredsheet.write_lawsuits_to_google_sheet(
             manager, SHEET_KEY, WORKSHEET_ID, message.text)
         if status:
-            bot.send_message(message.from_user.id, 'Спасибо! Данные внесены.')
+            bot.send_message(
+                message.from_user.id,
+                'Спасибо! Данные внесены \u2705'
+            )
         else:
             bot.send_message(message.from_user.id, 'Что-то пошло не так.')
     else:
         bot.send_message(
             message.from_user.id,
             'Прости, я не понял. Попробуй снова и пришли пожалуйста данные '
-            'в числовом формате.'
+            'в числовом формате \u261d\U0001f3fb'
         )
 
 
-@bot.message_handler(commands=['leader'])
+@bot.message_handler(regexp=r'красавчик\S*')
 @permission_check
 def show_the_leader(message):
+    """Send the leader of the day"""
+
     leaders = spredsheet.get_leaders_from_google_sheet(
         manager, SHEET_KEY, WORKSHEET_ID)
 
     if leaders:
         bot.send_message(
-            message.from_user.id, 'Красавчики дня:\n' + ', '.join(leaders))
+            message.from_user.id,
+            '\U0001f5ff Красавчики дня:\n' + ', '.join(leaders)
+        )
     else:
         bot.send_message(message.from_user.id, 'Красавчиков дня нет')
+
+
+@bot.message_handler(regexp=r'объявление\S*')
+@permission_check
+@user_is_admin_check
+def start_make_announcement(message):
+    """Make an announcement for all added users"""
+
+    bot.send_message(
+        message.from_user.id,
+        f'Привет {message.from_user.first_name}! '
+        'Пришли мне текст сообщения, а я отправлю '
+        'его всем сотрудникам \U0001f4dd'
+    )
+    bot.register_next_step_handler(message, make_announcement)
+
+
+def make_announcement(message):
+    """Get announcement"""
+
+    ids = db.return_users_ids(cursor)
+    kwargs = {'text': message.text, 'ids': ids}
+    bot.send_message(message.from_user.id, 'Записал. Отправляем? (да/нет)')
+    bot.register_next_step_handler(message, send_announcement, **kwargs)
+
+
+def send_announcement(message, **kwargs):
+    """Announcement sending confirmation"""
+
+    if message.text == 'да':
+        for user_id in kwargs['ids']:
+            bot.send_message(user_id, kwargs['text'])
+        bot.send_message(
+            message.from_user.id,
+            'Готово! Сотрудники уведомлены \u2705'
+        )
+    elif message.text == 'нет':
+        bot.send_message(
+            message.from_user.id,
+            'Принял. Отменяю \U0001f44c\U0001f3fb'
+        )
+    else:
+        bot.send_message(
+            message.from_user.id,
+            'Не понял ответа. Отмена \U0001f44c\U0001f3fb'
+        )
 
 
 bot.polling()

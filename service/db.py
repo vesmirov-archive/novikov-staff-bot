@@ -1,3 +1,7 @@
+"""
+    Database module for for working with PostgreSQL
+"""
+
 import psycopg2
 from psycopg2.errors import UniqueViolation
 
@@ -47,6 +51,7 @@ def list_users(cursor):
         'FROM employees')
     rows = cursor.fetchall()
     users = []
+
     for idx, row in enumerate(rows):
         role = '(admin)' if row[4] else ''
         users.append(
@@ -54,6 +59,18 @@ def list_users(cursor):
             f'{row[1]} {row[2]} [{row[3]}] {role}'
         )
     return '\n'.join(users)
+
+
+def return_users_ids(cursor):
+    """Get ids of all users"""
+
+    ids = []
+    cursor.execute('SELECT user_id FROM employees')
+    rows = cursor.fetchall()
+
+    for row in rows:
+        ids.append(row[0])
+    return ids
 
 
 def add_user(cursor, connect, user_id, username,
@@ -73,6 +90,8 @@ def add_user(cursor, connect, user_id, username,
 
 
 def delete_user(cursor, connect, user_id):
+    """Delete user"""
+
     cursor.execute(
         f"DELETE FROM employees WHERE user_id={user_id}"
     )
@@ -80,6 +99,8 @@ def delete_user(cursor, connect, user_id):
 
 
 def get_employee_position(cursor, user_id):
+    """Get employee position on his job"""
+
     cursor.execute(
         f"SELECT position FROM employees WHERE user_id = {user_id}")
     rows = cursor.fetchall()

@@ -4,6 +4,9 @@ start:
 prepare:
 	poetry run python prepare.py
 
+schedule:
+	poetry run python scheduler.py
+
 day:
 	poetry run python notifier.py -c day
 

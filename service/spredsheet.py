@@ -1,3 +1,7 @@
+"""
+    Google sheets module
+"""
+
 import datetime
 import json
 
@@ -11,6 +15,8 @@ with open('employees.json', 'r') as file:
 
 def write_KPI_to_google_sheet(manager, sheet_key, page_id,
                               user_id, position, values):
+    """Update specific cells with given values (KPI)"""
+
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
@@ -32,6 +38,8 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
 
 
 def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
+    """Update specific cells with given values (lawsuits)"""
+
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
@@ -45,6 +53,8 @@ def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
 
 
 def check_if_already_filled(manager, sheet_key, page_id, user_id, position):
+    """Check specific worksheet cells if they already has been filled"""
+
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
@@ -62,6 +72,8 @@ def check_if_already_filled(manager, sheet_key, page_id, user_id, position):
 
 
 def get_daily_statistic(manager, sheet_key, page_id):
+    """Get all values for today"""
+
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
@@ -74,6 +86,8 @@ def get_daily_statistic(manager, sheet_key, page_id):
 
 
 def get_weekly_statistic(manager, sheet_key, page_id):
+    """Get all values for the week"""
+
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
@@ -86,14 +100,18 @@ def get_weekly_statistic(manager, sheet_key, page_id):
 
 
 def get_recipients_list():
+    """Get users, which must be notificated with statistic"""
+
     return EMPLOYEES['рассылка'].values()
 
 
 def get_leaders_from_google_sheet(manager, sheet_key, page_id):
+    """Find leaders among all emoloyees"""
+
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
-    row = str(diff.days - datetime.date.today().weekday() + ROW_SHIFT)
+    row = str(diff.days + ROW_SHIFT)
 
     people = {}
     for name, col in EMPLOYEES['сводка']['молодцы'].items():

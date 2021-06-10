@@ -9,9 +9,11 @@ __pycache__/
 
 # vscode
 .vscode
+*.code-workspace
 
-# credentials
-credentials.json
+# google
+client_secret.json
+sheets.googleapis.com-python.json
 
 # other
 employees.json
