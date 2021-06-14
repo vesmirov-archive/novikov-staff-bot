@@ -441,5 +441,9 @@ def send_announcement(message, **kwargs):
         )
 
 
-bot.polling()
+try:
+  bot.polling()
+except Exception as e:
+  print(e)
+
 connect.close()
