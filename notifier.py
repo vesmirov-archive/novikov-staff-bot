@@ -165,7 +165,7 @@ def main():
     """Notification manager"""
 
     bot = telebot.TeleBot(TOKEN)
-    manager = pygsheets.authorize(client_secret=CLIENT_SECRET_FILE)
+    manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
 
     if args.config == 'day':
         send_daily_results(bot, manager)
