@@ -47,16 +47,23 @@ def list_users(cursor):
     """Show list of users"""
 
     cursor.execute(
-        'SELECT username, firstname, lastname, position, is_admin, user_id '
+        'SELECT username, firstname, lastname, department, '
+        'position, is_admin, user_id '
         'FROM employees')
     rows = cursor.fetchall()
     users = []
 
     for idx, row in enumerate(rows):
-        role = '(admin)' if row[4] else ''
+        username = row[0]
+        firstname = row[1]
+        lastname = row[2]
+        department = row[3]
+        position = row[4]
+        is_admin = '(admin)' if row[5] else ''
+        user_id = row[6]
         users.append(
-            f'{idx + 1}: {row[5]} {row[0]} - '
-            f'{row[1]} {row[2]} [{row[3]}] {role}'
+            f'{idx + 1}: {user_id} {username} - '
+            f'{firstname} {lastname} [{department} / {position}] {is_admin}'
         )
     return '\n'.join(users)
 
@@ -74,13 +81,14 @@ def return_users_ids(cursor):
 
 
 def add_user(cursor, connect, user_id, username,
-             firstname, lastname, position, is_admin):
+             firstname, lastname, department, position, is_admin):
     """Add user"""
 
     try:
         cursor.execute(
             f"INSERT INTO employees VALUES ({user_id}, '{username}', "
-            f"'{firstname}', '{lastname}', '{position}', {is_admin});"
+            f"'{firstname}', '{lastname}', '{department}', "
+            f"'{position}', {is_admin});"
         )
         connect.commit()
         return True
@@ -98,11 +106,10 @@ def delete_user(cursor, connect, user_id):
     connect.commit()
 
 
-def get_employee_position(cursor, user_id):
-    """Get employee position on his job"""
+def get_employee_department_and_position(cursor, user_id):
+    """Get employee department and position"""
 
     cursor.execute(
-        f"SELECT position FROM employees WHERE user_id = {user_id}")
+        f"SELECT department, position FROM employees WHERE user_id = {user_id}")
     rows = cursor.fetchall()
-    position = rows[0][0]
-    return position
+    return {'department': rows[0][0], 'position': rows[0][1]}

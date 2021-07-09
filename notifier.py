@@ -23,16 +23,16 @@ args = parser.parse_args()
 
 env = dotenv_values('.env')
 
-with open('employees.json', 'r') as file:
-    EMPLOYEES = json.loads(file.read())
+with open('config.json', 'r') as file:
+    CONFIG = json.loads(file.read())
 
 # telegram
 TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
-CHAT = env.get('TELEGRAM_CHAT_ID')
 
 # google
 SHEET_KEY = env.get('SHEET_KEY')
-WORKSHEET_ID = env.get('WORKSHEET_STAFF_ID')
+WORKSHEET_LAW_ID = env.get('WORKSHEET_LAW_ID')
+WORKSHEET_SALES_ID = env.get('WORKSHEET_SALES_ID')
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
 # messages
@@ -56,29 +56,28 @@ LAWSUITS_MESSAGE = (
     'исков за неделю.\n\nВнести данные можно через кнопку "иски \U0001f5ff"'
 )
 
-# employees with next positions will be notified
-TRACKED_POSITIONS = [
-    'делопроизводство',
-    'исполнение'
-]
 
-
-def remind_to_send_kpi(bot, manager, second=False):
+def remind_to_send_kpi(bot, manager, department, second=False):
     """Notifications abount sending KPI values"""
 
     connect, cursor = db.connect_database(env)
-    cursor.execute("SELECT user_id, position, firstname FROM employees")
+    cursor.execute(
+        "SELECT user_id, firstname, department, position FROM employees")
     users = cursor.fetchall()
-
     text = KPI_SECOND_MESSAGE if second else KPI_MESSAGE
 
     for user in users:
-        if user[1] not in TRACKED_POSITIONS:
+        user_id, firstname, department, position = user
+        if  not CONFIG['ослеживание'][department][position]:
             continue
-
         try:
             filled = spredsheet.check_if_already_filled(
-                manager, SHEET_KEY, WORKSHEET_ID, user[0], user[1])
+                manager,
+                SHEET_KEY,
+                CONFIG[department]['worksheet'],
+                user[0],
+                user[1]
+            )
             if not filled:
                 bot.send_message(user[0], text.format(user[2]))
         except KeyError:
@@ -87,7 +86,7 @@ def remind_to_send_kpi(bot, manager, second=False):
     connect.close()
 
 
-def send_daily_results(bot, manager):
+def send_daily_results(bot, manager, department):
     """Sends daily results"""
 
     connect, cursor = db.connect_database(env)
@@ -98,11 +97,19 @@ def send_daily_results(bot, manager):
         user_id = user[0]
 
         if user_id in EMPLOYEES['рассылка'].values():
-            kpi_daily = spredsheet.get_daily_statistic_of_employee_in_division(
-                manager, SHEET_KEY, WORKSHEET_ID)
 
-            leaders = spredsheet.get_leaders_from_google_sheet(
-                manager, SHEET_KEY, WORKSHEET_ID)
+            if department == 'продажи':
+                kpi_daily = spredsheet.get_daily_statistic_of_employee_in_division(
+                    manager, SHEET_KEY, WORKSHEET_ID)
+
+                leaders = spredsheet.get_leaders_from_google_sheet(
+                    manager, SHEET_KEY, WORKSHEET_ID)
+            else:
+                kpi_daily = spredsheet.get_daily_statistic_of_employee_in_division(
+                    manager, SHEET_KEY, WORKSHEET_ID)
+
+                leaders = spredsheet.get_leaders_from_google_sheet(
+                    manager, SHEET_KEY, WORKSHEET_ID)
 
             result = ['Итоги дня \U0001f4ca:\n']
             for name, values in kpi_daily.items():
@@ -167,8 +174,10 @@ def main():
     bot = telebot.TeleBot(TOKEN)
     manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
 
-    if args.config == 'day':
+    if args.config == 'day-law':
         send_daily_results(bot, manager)
+    elif args.config == 'day-sales':
+        send_daily_results(bot, manager, department='продажи')
     elif args.config == 'week':
         send_weekly_results(bot, manager)
     elif args.config == 'kpi-first':

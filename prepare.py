@@ -21,6 +21,7 @@ def main():
             'username VARCHAR(100) NOT NULL,'
             'firstname VARCHAR(100) NOT NULL,'
             'lastname VARCHAR(100),'
+            'department VARCHAR(100),'
             'position VARCHAR(100),'
             'is_admin BOOL NOT NULL);'
         )
@@ -32,11 +33,13 @@ def main():
         username = env.get('TELEGRAM_USERNAME')
         firstname = env.get('FIRSTNAME')
         lastname = env.get('LASTNAME')
+        department = env.get('DEPARTMENT')
         position = env.get('POSITION')
         if user_id:
             cursor.execute(
                 f"INSERT INTO employees VALUES ({user_id}, '{username}', "
-                f"'{firstname}', '{lastname}', '{position}', True);"
+                f"'{firstname}', '{lastname}', '{department}', "
+                f"'{position}', True);"
             )
 
     connect.commit()

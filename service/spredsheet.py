@@ -9,12 +9,22 @@ import json
 START_DATE = datetime.date(2021, 1, 1)
 ROW_SHIFT = 3
 
-with open('employees.json', 'r') as file:
-    EMPLOYEES = json.loads(file.read())
+with open('config.json', 'r') as file:
+    CONFIG = json.loads(file.read())
+
+
+def google_query_booster(page, values, row):
+    values = list(zip(values.keys(), values.values()))
+    values.sort(key=lambda x: (len(x[1]), x[1]))
+    desc = [k for k, _ in values]
+    cells = [(v + row) for _, v in values]
+    query = page.get_values(cells[0], cells[-1])
+
+    return dict(zip(desc, query[0]))
 
 
 def write_KPI_to_google_sheet(manager, sheet_key, page_id,
-                              user_id, position, values):
+                              user_id, department, position, values):
     """Update specific cells with given values (KPI)"""
 
     sheet = manager.open_by_key(sheet_key)
@@ -26,10 +36,10 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
         user_id = str(user_id)
         cols = map(
             lambda x: x + row,
-            EMPLOYEES['подразделения'][position]['сотрудники'][user_id]['KPI'].values()  # noqa
+            CONFIG['подразделения'][department][position]['сотрудники'][user_id]['KPI'].values()  # noqa
         )
         cells = zip(cols, values)
-    except KeyError:
+    except KeyError as e:
         return False
     else:
         for cell in cells:
@@ -44,7 +54,7 @@ def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
     page = sheet.worksheet('id', page_id)
     diff = datetime.date.today() - START_DATE
     row = str(diff.days - datetime.date.today().weekday() + ROW_SHIFT)
-    col = EMPLOYEES['сводка']['KPI неделя']['исков подано']
+    col = CONFIG['сводка']['делопроизводство']['KPI неделя']['исков подано']
 
     page.update_value(col + row, value)
 
@@ -52,26 +62,7 @@ def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
     return True
 
 
-def check_if_already_filled(manager, sheet_key, page_id, user_id, position):
-    """Check specific worksheet cells if they already has been filled"""
-
-    sheet = manager.open_by_key(sheet_key)
-    page = sheet.worksheet('id', page_id)
-    diff = datetime.date.today() - START_DATE
-    row = str(diff.days + ROW_SHIFT)
-
-    cells = map(
-        lambda x: x + row,
-        EMPLOYEES['подразделения'][position]['сотрудники'][str(user_id)]['KPI'].values()  # noqa
-    )
-    for cell in cells:
-        value = page.get_value(cell)
-        if not value:
-            return False
-    return True
-
-
-def get_daily_statistic(manager, sheet_key, page_id):
+def get_daily_statistic(manager, sheet_key, page_id, department):
     """Get all values for today"""
 
     sheet = manager.open_by_key(sheet_key)
@@ -79,18 +70,15 @@ def get_daily_statistic(manager, sheet_key, page_id):
     diff = datetime.date.today() - START_DATE
     row = str(diff.days + ROW_SHIFT)
 
-    values = {}
-    for name, col in EMPLOYEES['сводка']['KPI день'].items():
-        values[name] = page.get_value(col + row)
+    values = google_query_booster(
+        page,
+        CONFIG['сводка'][department]['KPI день'],
+        row
+    )
     return values
 
 
-def get_daily_statistic_of_employee_in_division(
-        manager,
-        sheet_key,
-        page_id,
-        divisions=["делопроизводство", "исполнение"]
-    ):
+def get_daily_detail_statistic(manager, sheet_key, page_id, department):
     """Get every employee value for today"""
 
     sheet = manager.open_by_key(sheet_key)
@@ -98,20 +86,18 @@ def get_daily_statistic_of_employee_in_division(
     diff = datetime.date.today() - START_DATE
     row = str(diff.days + ROW_SHIFT)
 
-    values = {}
-    for division in divisions:
-        for employee in EMPLOYEES['подразделения'][division]['сотрудники'].values():
-            full_name = employee['имя'] + ' ' + employee['фамилия']
-            values[full_name] = {}
-            for value, col in employee['KPI'].items():
-                values[full_name][value] = page.get_value(col + row)
-    values['Общее'] = get_daily_statistic(manager, sheet_key, page_id)
-    
-    return values
-    
+    employees = {}
+    for position, values in CONFIG['подразделения'][department].items():  # noqa
+        employees[position] = {}
+        for employee in values['сотрудники'].values():
+            if employee['KPI']:
+                full_name = employee['имя'] + ' ' + employee['фамилия']
+                employees[position][full_name] = google_query_booster(
+                    page, employee['KPI'], row)
+    return employees    
 
 
-def get_weekly_statistic(manager, sheet_key, page_id):
+def get_weekly_statistic(manager, sheet_key, page_id, department):
     """Get all values for the week"""
 
     sheet = manager.open_by_key(sheet_key)
@@ -119,19 +105,37 @@ def get_weekly_statistic(manager, sheet_key, page_id):
     diff = datetime.date.today() - START_DATE
     row = str(diff.days - datetime.date.today().weekday() + ROW_SHIFT)
 
-    values = {}
-    for name, col in EMPLOYEES['сводка']['KPI неделя'].items():
-        values[name] = page.get_value(col + row)
+    values = google_query_booster(
+        page,
+        CONFIG['сводка'][department]['KPI неделя'],
+        row
+    )
     return values
 
 
 def get_recipients_list():
     """Get users, which must be notificated with statistic"""
 
-    return EMPLOYEES['рассылка'].values()
+    return CONFIG['рассылка'].values()
 
 
-def get_leaders_from_google_sheet(manager, sheet_key, page_id):
+def check_if_already_filled(page, user_id, department, position, row):
+    """Check specific worksheet cells if they already has been filled"""
+
+    values = google_query_booster(
+        page,
+        CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['KPI'],  # noqa
+        row
+    )
+
+    for value in values:
+        if not value:
+            return False
+
+    return True
+
+
+def get_leaders_from_google_sheet(manager, sheet_key, page_id, department):
     """Find leaders among all emoloyees"""
 
     sheet = manager.open_by_key(sheet_key)
@@ -139,18 +143,19 @@ def get_leaders_from_google_sheet(manager, sheet_key, page_id):
     diff = datetime.date.today() - START_DATE
     row = str(diff.days + ROW_SHIFT)
 
-    people = {}
-    for name, col in EMPLOYEES['сводка']['молодцы'].items():
-        people[name] = int(page.get_value(col + row))
+    score = google_query_booster(
+        page,
+        CONFIG['сводка'][department]['молодцы']['баллы'],
+        row
+    )
+
+    for key in score:
+        score[key] = int(score[key])
+    max_points = max(score.values())
 
     leaders = []
-    max_points = 0
-    for points in people.values():
-        if points > max_points:
-            max_points = points
-
     if max_points:
-        for name, points in people.items():
+        for name, points in score.items():
             if points == max_points:
                 leaders.append(name)
     return leaders
