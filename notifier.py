@@ -30,19 +30,16 @@ with open('config.json', 'r') as file:
 TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 
 # google
-SHEET_KEY = env.get('SHEET_KEY')
-WORKSHEET_LAW_ID = env.get('WORKSHEET_LAW_ID')
-WORKSHEET_SALES_ID = env.get('WORKSHEET_SALES_ID')
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
 # messages
 KPI_MESSAGE = (
-    'Привет, {}! Рабочий день закончен, самое время заняться своими делами :)\n'
+    'Привет! Рабочий день закончен, самое время заняться своими делами :)\n'
     'Напоследок, пожалуйста, пришли мне свои цифры за сегодня, '
     'нажав кнопку "показатели \U0001f3af"'
 )
 KPI_SECOND_MESSAGE = (
-    '{}, через 30 минут руководству будет отправлена '
+    'Через 30 минут руководству будет отправлена '
     'сводка за день, а я так и не получил твоих цифр. Поспеши!'
 )
 FAIL_MESSAGE = (
@@ -51,109 +48,121 @@ FAIL_MESSAGE = (
     'Пожалуйста, сообщи об ошибке ответственному лицу'
 )
 LAWSUITS_MESSAGE = (
-    '{}, наконец-то конец рабочей недели! :)\n'
+    'Наконец-то конец рабочей недели! :)\n'
     'Пожалуйста, проверь на актуальность количество поданных '
     'исков за неделю.\n\nВнести данные можно через кнопку "иски \U0001f5ff"'
 )
 
 
-def remind_to_send_kpi(bot, manager, department, second=False):
+def remind_to_send_kpi(bot, manager, second=False):
     """Notifications abount sending KPI values"""
-
-    connect, cursor = db.connect_database(env)
-    cursor.execute(
-        "SELECT user_id, firstname, department, position FROM employees")
-    users = cursor.fetchall()
+    
     text = KPI_SECOND_MESSAGE if second else KPI_MESSAGE
 
-    for user in users:
-        user_id, firstname, department, position = user
-        if  not CONFIG['ослеживание'][department][position]:
-            continue
-        try:
-            filled = spredsheet.check_if_already_filled(
-                manager,
-                SHEET_KEY,
-                CONFIG[department]['worksheet'],
-                user[0],
-                user[1]
-            )
-            if not filled:
-                bot.send_message(user[0], text.format(user[2]))
-        except KeyError:
-            bot.send_message(user[0], FAIL_MESSAGE)
-
-    connect.close()
+    departments_tracked = []
+    for department, positions in CONFIG['отслеживание'].items():
+        tracked = list(filter(lambda x: x, positions.values()))
+        if tracked:
+            departments_tracked.append(department)
 
 
-def send_daily_results(bot, manager, department):
+    for department in departments_tracked:
+        needed_employee = spredsheet.check_employees_values_for_fullness(
+            manager,
+            CONFIG['google']['table'],
+            CONFIG['google']['sheet'][department],
+            department
+        )
+        for employee_id in needed_employee:
+            print(employee_id)
+            bot.send_message(employee_id, text)
+
+
+def send_daily_results(bot, manager):
     """Sends daily results"""
 
-    connect, cursor = db.connect_database(env)
-    cursor.execute("SELECT user_id FROM employees")
-    users = cursor.fetchall()
+    departments_tracked = []
+    for department, positions in CONFIG['отслеживание'].items():
+        tracked = list(filter(lambda x: x, positions.values()))
+        if tracked:
+            departments_tracked.append(department)
 
-    for user in users:
-        user_id = user[0]
+    departments_statistic = []
+    for department in departments_tracked:
+        day = spredsheet.get_daily_detail_statistic(
+            manager,
+            CONFIG['google']['table'],
+            CONFIG['google']['sheet'][department],
+            department
+        )
+        departments_statistic.append(day)
 
-        if user_id in EMPLOYEES['рассылка'].values():
+    department_leaders = {}
+    for department in departments_tracked:
+        leaders = spredsheet.get_leaders_from_google_sheet(
+            manager,
+            CONFIG['google']['table'],
+            CONFIG['google']['sheet'][department],
+            department
+        )
+        department_leaders.update({department: leaders})
 
-            if department == 'продажи':
-                kpi_daily = spredsheet.get_daily_statistic_of_employee_in_division(
-                    manager, SHEET_KEY, WORKSHEET_ID)
+    for recipient_id in CONFIG['рассылка'].values():
+        bot.send_message(recipient_id, 'Итоги дня \U0001f4ca')
 
-                leaders = spredsheet.get_leaders_from_google_sheet(
-                    manager, SHEET_KEY, WORKSHEET_ID)
+        for values in departments_statistic:
+            result = []
+            for position, employees in values.items():
+                employees_result = []
+                for employee, values in employees.items():
+                    employees_result.append(f'\n\U0001F464 {employee}:\n')
+                    employees_result.append('\n'.join([f'{k}: {v}' for k, v in values.items()]))
+                result.append(f'\n\n\U0001F53D {position.upper()}')
+                result.append('\n'.join(employees_result))
+            bot.send_message(recipient_id, '\n'.join(result))
+
+        bot.send_message(recipient_id, 'Красавчики дня \U0001F3C6')
+        
+        leaders = []
+        for department, values in department_leaders.items():
+            if values:
+                leaders.append(f'\U0001f38a {department.capitalize()}: ' + ', '.join(values))
             else:
-                kpi_daily = spredsheet.get_daily_statistic_of_employee_in_division(
-                    manager, SHEET_KEY, WORKSHEET_ID)
-
-                leaders = spredsheet.get_leaders_from_google_sheet(
-                    manager, SHEET_KEY, WORKSHEET_ID)
-
-            result = ['Итоги дня \U0001f4ca:\n']
-            for name, values in kpi_daily.items():
-                result.append(f'\U0001f464 {name}\n')
-                for key, value in values.items():
-                    result.append(f'{key}: {value}')
-                result.append('')
-            bot.send_message(user_id, '\n'.join(result))
-
-            if leaders:
-                bot.send_message(user_id, 'Красавчики дня:\n' + ', '.join(leaders))
-            else:
-                bot.send_message(user_id, 'Красавчиков дня нет')
-
-    connect.close()
+                leaders.append(f'\U0001f5ff {department.capitalize()}: Красавчиков дня нет')
+        bot.send_message(recipient_id, '\n\n'.join(leaders))
 
 
 def send_weekly_results(bot, manager):
     """Sends weekly results"""
 
-    connect, cursor = db.connect_database(env)
-    cursor.execute("SELECT user_id FROM employees")
-    users = cursor.fetchall()
+    departments_tracked = []
+    for department, positions in CONFIG['отслеживание'].items():
+        tracked = list(filter(lambda x: x, positions.values()))
+        if tracked:
+            departments_tracked.append(department)
 
-    for user in users:
-        user_id = user[0]
+    departments_statistic = []
+    for department in departments_tracked:
+        week = spredsheet.get_weekly_statistic(
+            manager,
+            CONFIG['google']['table'],
+            CONFIG['google']['sheet'][department],
+            department
+        )
+        departments_statistic.append(week)
 
-        if user_id in EMPLOYEES['рассылка'].values():
-            kpi_weekly = spredsheet.get_weekly_statistic(
-                manager, SHEET_KEY, WORKSHEET_ID)
-
-            statistic = ['Сводка за неделю\n']
-            for key, value in kpi_weekly.items():
-                statistic.append(f'{key}: {value}')
-
-            bot.send_message(user_id, '\n'.join(statistic))
-
-    connect.close()
+    for recipient_id in CONFIG['рассылка'].values():
+        bot.send_message(recipient_id, 'Итоги недели \U0001f5d3')
+        for values in departments_statistic:
+            result = []
+            result.extend([f'{k}: {v}' for k, v in values.items()])
+            bot.send_message(recipient_id, '\n'.join(result))
 
 
 def remind_to_send_lawsuits(bot):
     """Notifications abount sending lawsuits"""
 
-    ids = map(str, EMPLOYEES['иски'].values())
+    ids = map(str, CONFIG['иски'].values())
 
     connect, cursor = db.connect_database(env)
     cursor.execute(
@@ -165,7 +174,7 @@ def remind_to_send_lawsuits(bot):
     for user in users:
         user_id = user[0]
         name = user[1]
-        bot.send_message(user_id, LAWSUITS_MESSAGE.format(name))
+        bot.send_message(user_id, LAWSUITS_MESSAGE)
 
 
 def main():
@@ -174,10 +183,8 @@ def main():
     bot = telebot.TeleBot(TOKEN)
     manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
 
-    if args.config == 'day-law':
+    if args.config == 'day':
         send_daily_results(bot, manager)
-    elif args.config == 'day-sales':
-        send_daily_results(bot, manager, department='продажи')
     elif args.config == 'week':
         send_weekly_results(bot, manager)
     elif args.config == 'kpi-first':

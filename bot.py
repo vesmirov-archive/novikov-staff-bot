@@ -1,7 +1,7 @@
 """
     Bot's module with specified commands
 """
-
+import json
 import telebot
 import pygsheets
 from dotenv import dotenv_values
@@ -16,14 +16,13 @@ TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 CHAT = env.get('TELEGRAM_CHAT_ID')
 
 # google
-SHEET_KEY = env.get('SHEET_KEY')
-WORKSHEET_LAW_ID = env.get('WORKSHEET_LAW_ID')
-WORKSHEET_SALES_ID = env.get('WORKSHEET_SALES_ID')
-
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
 # config
-POSITIONS = {
+with open('config.json', 'r') as file:
+    CONFIG = json.loads(file.read())
+
+MESSAGES_CONFIG = {
     'руководство': {
         'worksheet': None,
         'руководитель': {},
@@ -31,7 +30,6 @@ POSITIONS = {
         'помощник': {},
     },
     'делопроизводство': {
-        'worksheet': WORKSHEET_LAW_ID,
         'ведение': {
             'message': (
                 'Пожалуйста, отправьте мне количественные '
@@ -62,7 +60,6 @@ POSITIONS = {
         },
     },
     'продажи': {
-        'worksheet': WORKSHEET_SALES_ID,
         'лиды': {
             'message': (
                 'Пожалуйста, отправьте мне следующие данные:\n\n'
@@ -156,7 +153,7 @@ kpi_btn = telebot.types.InlineKeyboardButton('показатели \U0001f3af')
 today_btn = telebot.types.InlineKeyboardButton('день \U0001f4c6')
 week_btn = telebot.types.InlineKeyboardButton('неделя \U0001f5d3')
 lawsuits_btn = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
-leader_btn = telebot.types.InlineKeyboardButton('красавчик \U0001f38a')
+leader_btn = telebot.types.InlineKeyboardButton('красавчики \U0001F3C6')
 announce_btn = telebot.types.InlineKeyboardButton('объявление \U0001f4ef')
 menu_markup.add(
     kpi_btn,
@@ -210,7 +207,10 @@ def send_help_text(message):
         Send help-text to user
     """
 
-    bot.send_message(message.from_user.id, HELP_MESSAGE.format(SHEET_KEY))
+    bot.send_message(
+        message.from_user.id,
+        HELP_MESSAGE.format(CON)
+    )
 
 
 @bot.message_handler(commands=['users'])
@@ -247,13 +247,13 @@ def adding_user(message):
     if len(data) != 7:
         bot.send_message(message.from_user.id, 'Неверный формат.')
         return
-    if data[4] not in POSITIONS.keys():
+    if data[4] not in MESSAGES_CONFIG.keys():
         bot.send_message(
             message.from_user.id,
             'Указанный отдел не представлен в списке.'
         )
         return
-    if data[5] not in POSITIONS[data[4]].keys():
+    if data[5] not in MESSAGES_CONFIG[data[4]].keys():
         bot.send_message(
             message.from_user.id,
             'Указанный функционал отсутствует в списке.'
@@ -331,12 +331,12 @@ def start_kpi_check(message):
     department = kwargs['department']
     position = kwargs['position']
     try:
-        if POSITIONS[department][position]:
+        if MESSAGES_CONFIG[department][position]:
             kwargs.update(
-                response_len=POSITIONS[department][position]['values_amount'])
+                response_len=MESSAGES_CONFIG[department][position]['values_amount'])
             message = bot.send_message(
                 message.from_user.id,
-                POSITIONS[department][position]['message']
+                MESSAGES_CONFIG[department][position]['message']
             )
             bot.register_next_step_handler(message, kpi_check, **kwargs)
         else:
@@ -382,8 +382,8 @@ def kpi_check(message, **kwargs):
 
         status = spredsheet.write_KPI_to_google_sheet(
             manager,
-            SHEET_KEY,
-            POSITIONS[department]['worksheet'],
+            CONFIG['google']['table'],
+            CONFIG['google']['sheet'][department],
             message.from_user.id,
             department,
             kwargs['position'],
@@ -435,8 +435,8 @@ def day_statistic(call):
 
     kpi_daily = spredsheet.get_daily_statistic(
         manager,
-        SHEET_KEY,
-        POSITIONS[department]['worksheet'],
+        CONFIG['google']['table'],
+        CONFIG['google']['sheet'][department],
         department
     )
 
@@ -450,8 +450,8 @@ def day_statistic(call):
         call.message.chat.id, 'Статистика по сотрудникам \U0001F465')
     kpi_daily_detail = spredsheet.get_daily_detail_statistic(
         manager,
-        SHEET_KEY,
-        POSITIONS[department]['worksheet'],
+        CONFIG['google']['table'],
+        CONFIG['google']['sheet'][department],
         department
     )
     for position, employees in kpi_daily_detail.items():
@@ -496,8 +496,8 @@ def week_statistic(call):
 
     kpi_daily = spredsheet.get_weekly_statistic(
         manager,
-        SHEET_KEY,
-        POSITIONS[department]['worksheet'],
+        CONFIG['google']['table'],
+        CONFIG['google']['sheet'][department],
         department
     )
 
@@ -530,7 +530,11 @@ def week_lawsuits(message):
 
     if message.text.isnumeric():
         status = spredsheet.write_lawsuits_to_google_sheet(
-            manager, SHEET_KEY, WORKSHEET_LAW_ID, message.text)
+            manager,
+            CONFIG['google']['table'],
+            CONFIG['google']['sheet']['делопроизводство'],
+            message.text
+        )
         if status:
             bot.send_message(
                 message.from_user.id,
@@ -570,18 +574,18 @@ def show_the_leader(call):
 
     leaders = spredsheet.get_leaders_from_google_sheet(
         manager,
-        SHEET_KEY,
-        POSITIONS[department]['worksheet'],
+        CONFIG['google']['table'],
+        CONFIG['google']['sheet'][department],
         department
     )
 
     if leaders:
         bot.send_message(
             call.message.chat.id,
-            '\U0001f5ff Красавчики дня:\n' + ', '.join(leaders)
+            '\U0001f38a Красавчики дня: ' + ', '.join(leaders)
         )
     else:
-        bot.send_message(call.message.chat.id, 'Красавчиков дня нет')
+        bot.send_message(call.message.chat.id, '\U0001f5ff Красавчиков дня нет')
 
 
 @bot.message_handler(regexp=r'объявление\S*')

@@ -37,7 +37,7 @@ def user_is_admin_check(cursor, user_id):
     cursor.execute(
         f"SELECT is_admin FROM employees WHERE user_id = {user_id}")
     rows = cursor.fetchall()
-    for row in rows:
+    for row in rows[0]:
         if row:
             return True
     return False
