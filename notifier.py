@@ -55,8 +55,10 @@ LAWSUITS_MESSAGE = (
 
 
 def remind_to_send_kpi(bot, manager, second=False):
-    """Notifications abount sending KPI values"""
-    
+    """
+        Notifications abount sending KPI values
+    """
+
     text = KPI_SECOND_MESSAGE if second else KPI_MESSAGE
 
     departments_tracked = []
@@ -64,7 +66,6 @@ def remind_to_send_kpi(bot, manager, second=False):
         tracked = list(filter(lambda x: x, positions.values()))
         if tracked:
             departments_tracked.append(department)
-
 
     for department in departments_tracked:
         needed_employee = spredsheet.check_employees_values_for_fullness(
@@ -79,7 +80,9 @@ def remind_to_send_kpi(bot, manager, second=False):
 
 
 def send_daily_results(bot, manager):
-    """Sends daily results"""
+    """
+        Sends daily results
+    """
 
     departments_tracked = []
     for department, positions in CONFIG['отслеживание'].items():
@@ -116,24 +119,33 @@ def send_daily_results(bot, manager):
                 employees_result = []
                 for employee, values in employees.items():
                     employees_result.append(f'\n\U0001F464 {employee}:\n')
-                    employees_result.append('\n'.join([f'{k}: {v}' for k, v in values.items()]))
+                    employees_result.append(
+                        '\n'.join([f'{k}: {v}' for k, v in values.items()]))
                 result.append(f'\n\n\U0001F53D {position.upper()}')
                 result.append('\n'.join(employees_result))
             bot.send_message(recipient_id, '\n'.join(result))
 
         bot.send_message(recipient_id, 'Красавчики дня \U0001F3C6')
-        
+
         leaders = []
         for department, values in department_leaders.items():
             if values:
-                leaders.append(f'\U0001f38a {department.capitalize()}: ' + ', '.join(values))
+                leaders.append(
+                    f'\U0001f38a {department.capitalize()}: ' +
+                    ', '.join(values)
+                )
             else:
-                leaders.append(f'\U0001f5ff {department.capitalize()}: Красавчиков дня нет')
+                leaders.append(
+                    f'\U0001f5ff {department.capitalize()}: ' +
+                    'Красавчиков дня нет'
+                )
         bot.send_message(recipient_id, '\n\n'.join(leaders))
 
 
 def send_weekly_results(bot, manager):
-    """Sends weekly results"""
+    """
+        Sends weekly results
+    """
 
     departments_tracked = []
     for department, positions in CONFIG['отслеживание'].items():
@@ -160,25 +172,28 @@ def send_weekly_results(bot, manager):
 
 
 def remind_to_send_lawsuits(bot):
-    """Notifications abount sending lawsuits"""
+    """
+        Notifications abount sending lawsuits
+    """
 
     ids = map(str, CONFIG['иски'].values())
 
     connect, cursor = db.connect_database(env)
     cursor.execute(
-        "SELECT user_id, firstname FROM employees "
+        "SELECT user_id FROM employees "
         f"WHERE user_id IN ({', '.join(ids)})"
     )
     users = cursor.fetchall()
 
     for user in users:
         user_id = user[0]
-        name = user[1]
         bot.send_message(user_id, LAWSUITS_MESSAGE)
 
 
 def main():
-    """Notification manager"""
+    """
+        Notification manager
+    """
 
     bot = telebot.TeleBot(TOKEN)
     manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)

@@ -7,7 +7,9 @@ from psycopg2.errors import UniqueViolation
 
 
 def connect_database(env):
-    """Connect to database"""
+    """
+        Connect to database
+    """
 
     connect = psycopg2.connect(
         database=env.get('POSTGRES_DB'),
@@ -21,7 +23,9 @@ def connect_database(env):
 
 
 def user_has_permissions(cursor, user_id):
-    """Check if given id saved in databse"""
+    """
+        Check if given id saved in databse
+    """
 
     cursor.execute("SELECT user_id FROM employees")
     rows = cursor.fetchall()
@@ -32,7 +36,9 @@ def user_has_permissions(cursor, user_id):
 
 
 def user_is_admin_check(cursor, user_id):
-    """Check if given id saved in databse"""
+    """
+        Check if given id saved in databse
+    """
 
     cursor.execute(
         f"SELECT is_admin FROM employees WHERE user_id = {user_id}")
@@ -44,7 +50,9 @@ def user_is_admin_check(cursor, user_id):
 
 
 def list_users(cursor):
-    """Show list of users"""
+    """
+        Show list of users
+    """
 
     cursor.execute(
         'SELECT username, firstname, lastname, department, '
@@ -69,7 +77,9 @@ def list_users(cursor):
 
 
 def return_users_ids(cursor):
-    """Get ids of all users"""
+    """
+        Get ids of all users
+    """
 
     ids = []
     cursor.execute('SELECT user_id FROM employees')
@@ -82,7 +92,9 @@ def return_users_ids(cursor):
 
 def add_user(cursor, connect, user_id, username,
              firstname, lastname, department, position, is_admin):
-    """Add user"""
+    """
+        Add user
+    """
 
     try:
         cursor.execute(
@@ -98,7 +110,9 @@ def add_user(cursor, connect, user_id, username,
 
 
 def delete_user(cursor, connect, user_id):
-    """Delete user"""
+    """
+        Delete user
+    """
 
     cursor.execute(
         f"DELETE FROM employees WHERE user_id={user_id}"
@@ -107,9 +121,13 @@ def delete_user(cursor, connect, user_id):
 
 
 def get_employee_department_and_position(cursor, user_id):
-    """Get employee department and position"""
+    """
+        Get employee department and position
+    """
 
     cursor.execute(
-        f"SELECT department, position FROM employees WHERE user_id = {user_id}")
+        "SELECT department, position "
+        f"FROM employees WHERE user_id = {user_id}"
+    )
     rows = cursor.fetchall()
     return {'department': rows[0][0], 'position': rows[0][1]}

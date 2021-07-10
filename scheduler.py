@@ -11,7 +11,9 @@ USER = getpass.getuser()
 
 
 def main():
-    """Schedule notifications via Crontab"""
+    """
+        Schedule notifications via Crontab
+    """
 
     cron = CronTab(user=USER)
     cron.env['HOME'] = f'/home/{USER}'

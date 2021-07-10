@@ -9,7 +9,9 @@ from service.db import connect_database
 
 
 def main():
-    """Create 'employees' table in database and adds user from .env file"""
+    """
+        Create 'employees' table in database and adds user from .env file
+    """
 
     env = dotenv_values('.env')
     connect, cursor = connect_database(env)

@@ -209,7 +209,7 @@ def send_help_text(message):
 
     bot.send_message(
         message.from_user.id,
-        HELP_MESSAGE.format(CON)
+        HELP_MESSAGE.format(CONFIG['google']['table'])
     )
 
 
@@ -268,7 +268,7 @@ def adding_user(message):
             position = data[5]
             is_admin = True if data[6] == 'да' else False
 
-        except (ValueError, KeyError) as e:
+        except (ValueError, KeyError):
             bot.send_message(
                 message.from_user.id, 'Неверный формат.')
         else:
@@ -332,8 +332,7 @@ def start_kpi_check(message):
     position = kwargs['position']
     try:
         if MESSAGES_CONFIG[department][position]:
-            kwargs.update(
-                response_len=MESSAGES_CONFIG[department][position]['values_amount'])
+            kwargs.update(response_len=MESSAGES_CONFIG[department][position]['values_amount'])  # noqa
             message = bot.send_message(
                 message.from_user.id,
                 MESSAGES_CONFIG[department][position]['message']
@@ -427,10 +426,10 @@ def day_statistic(call):
         callback_query_id=call.id,
         text=(
             'Минуту, собираю данные.\n'
-            'Обычно это занимает не больше 20 секунд \U0001f552'
+            'Обычно это занимает не больше 5 секунд \U0001f552'
         )
     )
-    
+
     department = call.data.split()[-1]
 
     kpi_daily = spredsheet.get_daily_statistic(
@@ -459,7 +458,8 @@ def day_statistic(call):
         if employees:
             for employee, values in employees.items():
                 employees_result.append(f'\n\U0001F464 {employee}:\n')
-                employees_result.append('\n'.join([f'{k}: {v}' for k, v in values.items()]))
+                employees_result.append(
+                    '\n'.join([f'{k}: {v}' for k, v in values.items()]))
             result.append(f'\n\n\U0001F53D {position.upper()}')
             result.append('\n'.join(employees_result))
     bot.send_message(call.message.chat.id, '\n'.join(result))
@@ -491,7 +491,7 @@ def week_statistic(call):
             'Обычно это занимает не больше 5 секунд \U0001f552'
         )
     )
-    
+
     department = call.data.split()[-1]
 
     kpi_daily = spredsheet.get_weekly_statistic(
@@ -585,7 +585,10 @@ def show_the_leader(call):
             '\U0001f38a Красавчики дня: ' + ', '.join(leaders)
         )
     else:
-        bot.send_message(call.message.chat.id, '\U0001f5ff Красавчиков дня нет')
+        bot.send_message(
+            call.message.chat.id,
+            '\U0001f5ff Красавчиков дня нет'
+        )
 
 
 @bot.message_handler(regexp=r'объявление\S*')
@@ -640,6 +643,9 @@ def send_announcement(message, **kwargs):
         )
 
 
-bot.polling()
+try:
+  bot.polling()
+except Exception as e:
+  print(e)
 
 connect.close()

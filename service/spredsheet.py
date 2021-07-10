@@ -18,7 +18,7 @@ def google_query_booster(page, values, row):
     values.sort(key=lambda x: (len(x[1]), x[1]))
     desc = [k for k, _ in values]
     cells = [(v + row) for _, v in values]
-    
+
     if not cells:
         return {}
 
@@ -28,7 +28,9 @@ def google_query_booster(page, values, row):
 
 def write_KPI_to_google_sheet(manager, sheet_key, page_id,
                               user_id, department, position, values):
-    """Update specific cells with given values (KPI)"""
+    """
+        Update specific cells with given values (KPI)
+    """
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
@@ -42,7 +44,7 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
             CONFIG['подразделения'][department][position]['сотрудники'][user_id]['KPI'].values()  # noqa
         )
         cells = zip(cols, values)
-    except KeyError as e:
+    except KeyError:
         return False
     else:
         for cell in cells:
@@ -51,7 +53,9 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
 
 
 def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
-    """Update specific cells with given values (lawsuits)"""
+    """
+        Update specific cells with given values (lawsuits)
+    """
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
@@ -66,7 +70,9 @@ def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
 
 
 def get_daily_statistic(manager, sheet_key, page_id, department):
-    """Get all values for today"""
+    """
+        Get all values for today
+    """
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
@@ -82,7 +88,9 @@ def get_daily_statistic(manager, sheet_key, page_id, department):
 
 
 def get_daily_detail_statistic(manager, sheet_key, page_id, department):
-    """Get every employee value for today"""
+    """
+        Get every employee value for today
+    """
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
@@ -97,11 +105,13 @@ def get_daily_detail_statistic(manager, sheet_key, page_id, department):
                 full_name = employee['имя'] + ' ' + employee['фамилия']
                 employees[position][full_name] = google_query_booster(
                     page, employee['KPI'], row)
-    return employees    
+    return employees
 
 
 def get_weekly_statistic(manager, sheet_key, page_id, department):
-    """Get all values for the week"""
+    """
+        Get all values for the week
+    """
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
@@ -116,8 +126,11 @@ def get_weekly_statistic(manager, sheet_key, page_id, department):
     return values
 
 
-def check_employees_values_for_fullness(manager, sheet_key, page_id, department):
-    """Check specific worksheet cells if they already has been filled"""
+def check_employees_values_for_fullness(manager, sheet_key,
+                                        page_id, department):
+    """
+        Check specific worksheet cells if they already has been filled
+    """
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
@@ -140,10 +153,11 @@ def check_employees_values_for_fullness(manager, sheet_key, page_id, department)
     return needed_employee
 
 
-
 def get_leaders_from_google_sheet(manager, sheet_key, page_id, department):
-    """Find leaders among all emoloyees"""
-    
+    """
+        Find leaders among all emoloyees
+    """
+
     leaders = []
 
     sheet = manager.open_by_key(sheet_key)
