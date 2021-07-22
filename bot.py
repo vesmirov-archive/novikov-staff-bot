@@ -2,128 +2,34 @@
     Bot's module with specified commands
 """
 import json
-import telebot
-import pygsheets
-from dotenv import dotenv_values
 
+from dotenv import dotenv_values
+import pygsheets
+import telebot
+
+from messages import (
+    DENY_MESSAGE,
+    DENY_ANONIMUS_MESSAGE,
+    HELP_MESSAGE,
+    MESSAGES_CONFIG,
+    START_MESSAGE,
+    USER_ADD_MESSAGE,
+    USER_DELETE_MESSAGE,
+)
 from service import db
 from service import spredsheet
 
 env = dotenv_values('.env')
 
-# telegram
 TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 CHAT = env.get('TELEGRAM_CHAT_ID')
 
-# google
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
-# config
 with open('config.json', 'r') as file:
     CONFIG = json.loads(file.read())
 
-MESSAGES_CONFIG = {
-    'руководство': {
-        'worksheet': None,
-        'руководитель': {},
-        'заместитель': {},
-        'помощник': {},
-    },
-    'делопроизводство': {
-        'ведение': {
-            'message': (
-                'Пожалуйста, отправьте мне количественные '
-                'данные в следующем формате:\n\n'
-                '<заседаний>\n'
-                '<решений>\n'
-                '<подготовленных_исков>\n'
-                '<иных_документов>\n'
-                '<денег_получено>\n'
-                '<событий_съедающих_бонус>\n\n'
-                'Пример: 3 2 0 1 320000 0'
-            ),
-            'values_amount': 6,
-        },
-        'исполнение': {
-            'message': (
-                'Пожалуйста, отправьте мне следующие количественные:\n\n'
-                '<заседаний>\n'
-                '<решений>\n'
-                '<получено_листов>\n'
-                '<подано_листов>\n'
-                '<иных_документов>\n'
-                '<денег_получено>\n\n'
-                '<напр_заявл_по_суд_расходам>\n'
-                'Пример: 5 2 2 2 1 320000 0'
-            ),
-            'values_amount': 7,
-        },
-    },
-    'продажи': {
-        'лиды': {
-            'message': (
-                'Пожалуйста, отправьте мне следующие данные:\n\n'
-                '<залив_заявок>\n'
-                '<залив_напр_на_осмотр>\n'
-                '<неустойка_заявок>\n'
-                '<неустойка_получ_инн>\n'
-                '<приемка_заявок>\n'
-                '<приемка_напр_на_осмотр>\n'
-                '<рег_учет_заявок>\n'
-                '<рег_учет_назначено_встреч_в_офисе>\n\n'
-                'Пример: 10 5 5 2 5 3 1 1'
-            ),
-            'values_amount': 8,
-        },
-        'хантинг': {
-            'message': (
-                'Пожалуйста, отправьте мне следующие данные:\n\n'
-                '<залив_сделок>\n'
-                '<неустойка_сделок>\n'
-                '<приемка_сделок>\n'
-                '<рег_учет_сделок>\n\n'
-                'Пример: 10 5 0 1 '
-            ),
-            'values_amount': 4,
-        }
-    }
-}
 
-# messages
-START_MESSAGE = (
-    u'Привет, {}! \U0001f60a Я бот юридического центра Новиков.\n'
-    'Я собираю статистику сотрудников, просчитываю их KPI и '
-    'фиксирую данные в Google Sheets.\n'
-    'По любым вопросам можно обратиться к '
-    '@vilagov или @karlos979.'
-)
-DENY_ANONIMUS_MESSAGE = (
-    'У вас нет прав для пользования данным бота.\n'
-    'Обратитесь к @vilagov или @karlos979, если уверены '
-    'что вам нужен доступ.'
-)
-DENY_STAFF_MESSAGE = 'У вас недостаточно прав для выполнение данной команды.'
-
-ADDING_USER_MESSAGE = (
-    'Отправьте данные добавляемого сотрудника в следующем формате:\n'
-    '<telegram_ID_пользователя>\n<никнейм>\n<имя>\n'
-    '<фамилия>\n<отдел>\n<позиция>\n<админ_доступ_(да/нет)>\n\n'
-    'При указании отдела и позиции выбирайте из следующих значений:\n\n'
-    'руководство:\n    руководитель, заместитель, помощник\n\n'
-    'делопроизводство:\n    ведение, исполнение\n\n'
-    'продажи:\n    лиды, хантинг\n\n'
-    'Пример:\n'
-    '123456789 ivanov Иван Иванов продажи хантинг нет'
-)
-DELETING_USER_MESSAGE = 'Отправьте мне id удаляемого сотрудника'
-HELP_MESSAGE = (
-    'Команды:\n'
-    '/users - отобразить список пользователей (admin)\n'
-    '/adduser - добавить пользователя (admin)\n'
-    '/deluser - удалить пользователя (admin)\n\n'
-    'Таблица:\n'
-    'https://docs.google.com/spreadsheets/d/{}/edit'
-)
 
 
 def permission_check(func):
@@ -149,7 +55,7 @@ def user_is_admin_check(func):
         if db.user_is_admin_check(cursor, message.from_user.id):
             func(message)
         else:
-            bot.send_message(message.from_user.id, DENY_STAFF_MESSAGE)
+            bot.send_message(message.from_user.id, DENY_MESSAGE)
     return inner
 
 
@@ -243,7 +149,7 @@ def start_adding_user(message):
         Add user to this bot
     """
 
-    message = bot.send_message(message.from_user.id, ADDING_USER_MESSAGE)
+    message = bot.send_message(message.from_user.id, USER_ADD_MESSAGE)
     bot.register_next_step_handler(message, adding_user)
 
 
@@ -305,7 +211,7 @@ def start_deleting_user(message):
         Delete user
     """
 
-    message = bot.send_message(message.from_user.id, DELETING_USER_MESSAGE)
+    message = bot.send_message(message.from_user.id, USER_DELETE_MESSAGE)
     bot.register_next_step_handler(message, deleting_user)
 
 
@@ -634,14 +540,14 @@ def send_announcement(message, **kwargs):
         Announcement sending confirmation
     """
 
-    if message.text == 'да':
+    if message.text.lower() == 'да':
         for user_id in kwargs['ids']:
             bot.send_message(user_id, kwargs['text'])
         bot.send_message(
             message.from_user.id,
             'Готово! Сотрудники уведомлены \u2705'
         )
-    elif message.text == 'нет':
+    elif message.text.lower() == 'нет':
         bot.send_message(
             message.from_user.id,
             'Принял. Отменяю \U0001f44c\U0001f3fb'

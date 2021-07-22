@@ -10,10 +10,16 @@
 import argparse
 import json
 
-import telebot
-import pygsheets
 from dotenv import dotenv_values
+import pygsheets
+import telebot
 
+from messages import (
+    KPI_MESSAGE, 
+    KPI_SECOND_MESSAGE,
+    FAIL_MESSAGE,
+    LAWSUITS_MESSAGE,
+)
 from service import db
 from service import spredsheet
 
@@ -26,32 +32,9 @@ env = dotenv_values('.env')
 with open('config.json', 'r') as file:
     CONFIG = json.loads(file.read())
 
-# telegram
 TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 
-# google
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
-
-# messages
-KPI_MESSAGE = (
-    'Привет! Рабочий день закончен, самое время заняться своими делами :)\n'
-    'Напоследок, пожалуйста, пришли мне свои цифры за сегодня, '
-    'нажав кнопку "показатели \U0001f3af"'
-)
-KPI_SECOND_MESSAGE = (
-    'Через 30 минут руководству будет отправлена '
-    'сводка за день, а я так и не получил твоих цифр. Поспеши!'
-)
-FAIL_MESSAGE = (
-    'Я попытался с тобой связаться, '
-    'но кажется тебя не добавили в мой список :(\n'
-    'Пожалуйста, сообщи об ошибке ответственному лицу'
-)
-LAWSUITS_MESSAGE = (
-    'Наконец-то конец рабочей недели! :)\n'
-    'Пожалуйста, проверь на актуальность количество поданных '
-    'исков за неделю.\n\nВнести данные можно через кнопку "иски \U0001f5ff"'
-)
 
 
 def remind_to_send_kpi(bot, manager, second=False):
@@ -139,6 +122,8 @@ def send_daily_results(bot, manager):
                     f'\U0001f5ff {department.capitalize()}: ' +
                     'Красавчиков дня нет'
                 )
+            # temporary solution for exluding 'продажи' from leader statistics
+            break
         bot.send_message(recipient_id, '\n\n'.join(leaders))
 
 
