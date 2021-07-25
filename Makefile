@@ -13,11 +13,23 @@ day:
 week:
 	poetry run python notifier.py -c week
 
-first-notify:
+kpi-first-notify:
 	poetry run python notifier.py -c kpi-first
 
-second-notify:
+kpi-second-notify:
 	poetry run python notifier.py -c kpi-second
+
+plan-day-first-notify:
+	poetry run python notifier.py -c plan-day-first
+
+plan-day-second-notify:
+	poetry run python notifier.py -c plan-day-second
+
+plan-week-first-notify:
+	poetry run python notifier.py -c plan-week-first
+
+plan-week-second-notify:
+	poetry run python notifier.py -c plan-week-second
 
 lawsuits:
 	poetry run python notifier.py -c lawsuits

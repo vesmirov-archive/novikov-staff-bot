@@ -12,6 +12,7 @@ from messages import (
     DENY_ANONIMUS_MESSAGE,
     HELP_MESSAGE,
     MESSAGES_CONFIG,
+    PLAN_MESSAGE,
     START_MESSAGE,
     USER_ADD_MESSAGE,
     USER_DELETE_MESSAGE,
@@ -30,12 +31,10 @@ with open('config.json', 'r') as file:
     CONFIG = json.loads(file.read())
 
 
-
-
 def permission_check(func):
     """
         User permission check decorator.
-        If user id not in database, send 'deny access' message
+        If user's id not in database, send 'deny access' message
     """
 
     def inner(message):
@@ -65,7 +64,8 @@ connect, cursor = db.connect_database(env)
 
 # main keyboard
 menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
-kpi_btn = telebot.types.InlineKeyboardButton('показатели \U0001f3af')
+kpi_btn = telebot.types.InlineKeyboardButton('мои показатели \U0001f3af')
+plan = telebot.types.InlineKeyboardButton('мой план \U0001f4b5')
 today_btn = telebot.types.InlineKeyboardButton('день \U0001f4c6')
 week_btn = telebot.types.InlineKeyboardButton('неделя \U0001f5d3')
 lawsuits_btn = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
@@ -73,10 +73,11 @@ leader_btn = telebot.types.InlineKeyboardButton('красавчики \U0001F3C6
 announce_btn = telebot.types.InlineKeyboardButton('объявление \U0001f4ef')
 menu_markup.add(
     kpi_btn,
-    leader_btn,
+    plan,
     today_btn,
     week_btn,
     lawsuits_btn,
+    leader_btn,
     announce_btn
 )
 
@@ -96,11 +97,19 @@ law_week_btn = telebot.types.InlineKeyboardButton(
     'делопроизводство', callback_data='неделя делопроизводство')
 stat_week_markup.add(sales_week_btn, law_week_btn)
 
-# statistic leader keyboard
+# leader keyboard
 leader_markup = telebot.types.InlineKeyboardMarkup()
 law_leader_btn = telebot.types.InlineKeyboardButton(
     'делопроизводство', callback_data='красавчик делопроизводство')
 leader_markup.add(law_leader_btn)
+
+# plan keyboard
+plan_makup = telebot.types.InlineKeyboardMarkup()
+plan_day_btn = telebot.types.InlineKeyboardButton(
+    'на день', callback_data='план день')
+plan_week_btn = telebot.types.InlineKeyboardButton(
+    'на неделю', callback_data='план неделя')
+plan_makup.add(plan_day_btn, plan_week_btn)
 
 
 @bot.message_handler(commands=['start'])
@@ -125,13 +134,15 @@ def send_help_text(message):
 
     bot.send_message(
         message.from_user.id,
-        HELP_MESSAGE.format(CONFIG['google']['table'])
+        HELP_MESSAGE.format(
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['план']['table']
+        )
     )
 
 
 @bot.message_handler(commands=['users'])
 @permission_check
-@user_is_admin_check
 def send_list_users(message):
     """
         Show all added users to this bot
@@ -235,7 +246,115 @@ def deleting_user(message):
         )
 
 
-@bot.message_handler(regexp=r'показатели\S*')
+@bot.message_handler(regexp=r'мой план\S*')
+def start_set_plan(message):
+    """
+        Start setting personal plan
+    """
+    bot.send_message(
+        message.from_user.id,
+        'На какой срок нужно выставить план?',
+        reply_markup=plan_makup
+    )
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith('план'))
+def prepate_set_plan(call):
+    kwargs = db.get_employee_department_and_position(
+        cursor, call.from_user.id)
+    department = kwargs['department']
+    position = kwargs['position']
+    kwargs['period'] = call.data.split()[-1]
+
+    try:
+        employee = CONFIG['подразделения'][department][position]['сотрудники'][str(call.from_user.id)]  # noqa
+    except KeyError:
+        bot.send_message(
+            call.from_user.id,
+            'Кажется я вас не узнаю. Свяжитесь с администратором.'
+        )
+    else:
+        if employee['планирование']:
+            if employee['планирование'][kwargs['period']]:
+                bot.send_message(call.from_user.id, PLAN_MESSAGE)
+                kwargs['valamount'] = len(employee['планирование'][kwargs['period']]['текущая']['план'].keys())  # noqa
+                message = bot.send_message(
+                    call.from_user.id,
+                    '\n'.join(employee['планирование'][kwargs['period']]['текущая']['план'].keys())  # noqa
+                )
+                bot.register_next_step_handler(message, set_plan, **kwargs)
+            else:
+                bot.send_message(
+                    call.from_user.id,
+                    'Бот не отслеживает ваши планы на '
+                    'указанный срок \U0001f44c\U0001f3fb'
+                )
+        else:
+            bot.send_message(
+                call.from_user.id,
+                'Ваши планы не отслеживаются ботом \U0001f44c\U0001f3fb'
+            )
+
+
+def set_plan(message, **kwargs):
+    """
+        Setting personal plan
+    """
+
+    values = message.text.split()
+
+    if len(values) < kwargs['valamount']:
+        bot.send_message(
+            message.from_user.id,
+            'Указаны не все показатели \u261d\U0001f3fb'
+        )
+        return
+    elif len(values) > kwargs['valamount']:
+        bot.send_message(
+            message.from_user.id,
+            'Указаны лишние показатели \u261d\U0001f3fb'
+        )
+        return
+    else:
+        for i in values:
+            if not i.isnumeric():
+                bot.send_message(
+                    message.from_user.id,
+                    'Ответ должен быть количетсвенным '
+                    'и состоять из чисел \u261d\U0001f3fb'
+                )
+                return
+
+    status = spredsheet.write_plan_to_google_sheet(
+        manager,
+        CONFIG['google']['tables']['план']['table'],
+        CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
+        message.from_user.id,
+        kwargs['department'],
+        kwargs['position'],
+        kwargs['period'],
+        values
+    )
+    if status:
+        table_url = 'https://docs.google.com/spreadsheets/d/{}/edit#gid={}/'.format(
+            CONFIG['google']['tables']['план']['table'],
+            CONFIG['google']['tables']['план']['sheets'][kwargs['department']]
+        )
+        bot.send_message(
+            message.from_user.id,
+            'Цель установлена \u2705\n\n'
+            'Можешь отслеживать свои показатели в таблице:\n'
+            f'{table_url}\n\n'
+            'Продуктивной недели!'
+        )
+    else:
+        bot.send_message(
+            message.from_user.id,
+            'Кажется вас не добавили в таблицу.\n'
+            'Уведомите разработчиков.'
+        )
+
+
+@bot.message_handler(regexp=r'мои показатели\S*')
 @permission_check
 def start_kpi_check(message):
     """
@@ -297,8 +416,8 @@ def kpi_check(message, **kwargs):
 
         status = spredsheet.write_KPI_to_google_sheet(
             manager,
-            CONFIG['google']['table'],
-            CONFIG['google']['sheet'][department],
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['KPI']['sheets'][department],
             message.from_user.id,
             department,
             kwargs['position'],
@@ -350,8 +469,8 @@ def day_statistic(call):
 
     kpi_daily = spredsheet.get_daily_statistic(
         manager,
-        CONFIG['google']['table'],
-        CONFIG['google']['sheet'][department],
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets'][department],
         department
     )
 
@@ -365,8 +484,8 @@ def day_statistic(call):
         call.message.chat.id, 'Статистика по сотрудникам \U0001F465')
     kpi_daily_detail = spredsheet.get_daily_detail_statistic(
         manager,
-        CONFIG['google']['table'],
-        CONFIG['google']['sheet'][department],
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets'][department],
         department
     )
     for position, employees in kpi_daily_detail.items():
@@ -412,8 +531,8 @@ def week_statistic(call):
 
     kpi_daily = spredsheet.get_weekly_statistic(
         manager,
-        CONFIG['google']['table'],
-        CONFIG['google']['sheet'][department],
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets'][department],
         department
     )
 
@@ -447,8 +566,8 @@ def week_lawsuits(message):
     if message.text.isnumeric():
         status = spredsheet.write_lawsuits_to_google_sheet(
             manager,
-            CONFIG['google']['table'],
-            CONFIG['google']['sheet']['делопроизводство'],
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets']['делопроизводство'],
             message.text
         )
         if status:
@@ -490,8 +609,8 @@ def show_the_leader(call):
 
     leaders = spredsheet.get_leaders_from_google_sheet(
         manager,
-        CONFIG['google']['table'],
-        CONFIG['google']['sheet'][department],
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets'][department],
         department
     )
 
@@ -560,8 +679,8 @@ def send_announcement(message, **kwargs):
 
 
 try:
-  bot.polling()
+    bot.polling()
 except Exception as e:
-  print(e)
+    print(e)
 
 connect.close()

@@ -52,6 +52,50 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
         return True
 
 
+def write_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
+                               department, position, period, values):
+    """
+        Update specific cells with given values (plan)
+    """
+
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+
+    try:
+        cells = zip(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values(), values)  # noqa
+    except KeyError:
+        return False
+    for cell in cells:
+        page.update_value(cell[0], cell[1])
+    return True
+
+
+def save_current_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
+                                      department, position, period):
+    """
+        Save current period values in other cell
+    """
+
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+
+    plan = list(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values())  # noqa
+    fact = list(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['факт'].values())  # noqa
+    query = page.get_values(plan[0], fact[-1])
+
+    for row in query:
+        for idx in range(len(row)):
+            if row[idx] == '':
+                row[idx] = '0'
+
+    cells = zip(
+        CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['предыдущая']['план'].values(),  # noqa
+        query
+    )
+    for cell in cells:
+        page.update_values(cell[0], [cell[1]])
+
+
 def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
     """
         Update specific cells with given values (lawsuits)
@@ -145,11 +189,34 @@ def check_employees_values_for_fullness(manager, sheet_key,
                 employee['KPI'],
                 row
             )
-            print(employee_values)
             for value in employee_values.values():
                 if not value:
                     needed_employee.append(employee_id)
                     break
+    return needed_employee
+
+
+def check_employees_plan_for_fullness(manager, sheet_key,
+                                      page_id, department, period):
+    """
+        Check specific worksheet cells if they already has been filled
+    """
+
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+    diff = datetime.date.today() - START_DATE
+    row = str(diff.days + ROW_SHIFT)
+
+    needed_employee = []
+    for position, values in CONFIG['подразделения'][department].items():
+        for employee_id, employee in values['сотрудники'].items():
+            try:
+                for cell in employee['планирование'][period]['текущая']['план'].values():
+                    if not page.get_value(cell):
+                        needed_employee.append(employee_id)
+                        break
+            except KeyError:
+                needed_employee
     return needed_employee
 
 
@@ -183,3 +250,4 @@ def get_leaders_from_google_sheet(manager, sheet_key, page_id, department):
             if points == max_points:
                 leaders.append(name)
     return leaders
+

@@ -4,6 +4,10 @@
     '-c week' -- send week statistic
     '-c kpi-first' -- send first kpi notification
     '-c kpi-second' -- send second kpi notification
+    '-c plan-day-first' -- send first day plan notification
+    '-c plan-day-second' -- send second day plan notification
+    '-c plan-week-first' -- send first week plan notification
+    '-c plan-week-second' -- send second week plan notification
     '-c lawsuits' -- send lawsuits notification
 """
 
@@ -19,6 +23,10 @@ from messages import (
     KPI_SECOND_MESSAGE,
     FAIL_MESSAGE,
     LAWSUITS_MESSAGE,
+    DAY_PLAN_MESSAGE,
+    DAY_PLAN_SECOND_MESSAGE,
+    WEEK_PLAN_MESSAGE,
+    WEEK_PLAN_SECOND_MESSAGE
 )
 from service import db
 from service import spredsheet
@@ -51,14 +59,39 @@ def remind_to_send_kpi(bot, manager, second=False):
             departments_tracked.append(department)
 
     for department in departments_tracked:
-        needed_employee = spredsheet.check_employees_values_for_fullness(
+        needed_employees = spredsheet.check_employees_values_for_fullness(
             manager,
-            CONFIG['google']['table'],
-            CONFIG['google']['sheet'][department],
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['KPI']['sheets'][department],
             department
         )
-        for employee_id in needed_employee:
-            print(employee_id)
+        for employee_id in needed_employees:
+            bot.send_message(employee_id, text)
+
+
+def remind_to_send_plan(bot, manager, period, second=False):
+    
+    if period == 'день':
+        text = DAY_PLAN_SECOND_MESSAGE if second else DAY_PLAN_MESSAGE
+    else:
+        text = WEEK_PLAN_SECOND_MESSAGE if second else WEEK_PLAN_MESSAGE
+        
+
+    departments_tracked = []
+    for department, positions in CONFIG['отслеживание'].items():
+        tracked = list(filter(lambda x: x, positions.values()))
+        if tracked:
+            departments_tracked.append(department)
+
+    for department in departments_tracked:
+        needed_employees = spredsheet.check_employees_plan_for_fullness(
+            manager,
+            CONFIG['google']['tables']['план']['table'],
+            CONFIG['google']['tables']['план']['sheets'][department],
+            department,
+            period
+        )
+        for employee_id in needed_employees:
             bot.send_message(employee_id, text)
 
 
@@ -77,8 +110,8 @@ def send_daily_results(bot, manager):
     for department in departments_tracked:
         day = spredsheet.get_daily_detail_statistic(
             manager,
-            CONFIG['google']['table'],
-            CONFIG['google']['sheet'][department],
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['KPI']['sheets'][department],
             department
         )
         departments_statistic.append(day)
@@ -87,8 +120,8 @@ def send_daily_results(bot, manager):
     for department in departments_tracked:
         leaders = spredsheet.get_leaders_from_google_sheet(
             manager,
-            CONFIG['google']['table'],
-            CONFIG['google']['sheet'][department],
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['KPI']['sheets'][department],
             department
         )
         department_leaders.update({department: leaders})
@@ -142,8 +175,8 @@ def send_weekly_results(bot, manager):
     for department in departments_tracked:
         week = spredsheet.get_weekly_statistic(
             manager,
-            CONFIG['google']['table'],
-            CONFIG['google']['sheet'][department],
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['KPI']['sheets'][department],
             department
         )
         departments_statistic.append(week)
@@ -191,6 +224,14 @@ def main():
         remind_to_send_kpi(bot, manager)
     elif args.config == 'kpi-second':
         remind_to_send_kpi(bot, manager, True)
+    elif args.config == 'plan-day-first':
+        remind_to_send_plan(bot, manager, 'день')
+    elif args.config == 'plan-day-second':
+        remind_to_send_plan(bot, manager, 'день', True)
+    elif args.config == 'plan-week-first':
+        remind_to_send_plan(bot, manager, 'неделя')
+    elif args.config == 'plan-week-second':
+        remind_to_send_plan(bot, manager, 'неделя', True)
     elif args.config == 'lawsuits':
         remind_to_send_lawsuits(bot)
 
