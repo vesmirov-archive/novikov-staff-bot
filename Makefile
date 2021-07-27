@@ -31,6 +31,15 @@ plan-week-first-notify:
 plan-week-second-notify:
 	poetry run python notifier.py -c plan-week-second
 
+plan-day-save-sales:
+	poetry run python updater.py -c day-sales
+
+plan-week-save-sales:
+	poetry run python updater.py -c week-sales
+
+plan-week-save-law:
+	poetry run python updater.py -c week-law
+
 lawsuits:
 	poetry run python notifier.py -c lawsuits
 

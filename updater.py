@@ -44,6 +44,15 @@ def save_plan_values(manager, department, period):
                 position,
                 period
             )
+            spredsheet.remove_old_plan_from_google_sheet(
+                manager,
+                CONFIG['google']['tables']['план']['table'],
+                CONFIG['google']['tables']['план']['sheets'][department],
+                user_id,
+                department,
+                position,
+                period
+            )
 
 
 def main():

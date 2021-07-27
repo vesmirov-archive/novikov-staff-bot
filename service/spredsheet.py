@@ -73,7 +73,7 @@ def write_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
 def save_current_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
                                       department, position, period):
     """
-        Save current period values in other cell
+        Save current period values in other cells
     """
 
     sheet = manager.open_by_key(sheet_key)
@@ -94,6 +94,20 @@ def save_current_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
     )
     for cell in cells:
         page.update_values(cell[0], [cell[1]])
+
+
+def remove_old_plan_from_google_sheet(manager, sheet_key, page_id, user_id,
+                                      department, position, period):
+    """
+        Remove old plan from cells
+    """
+
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+
+    cells = list(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values())  # noqa
+    for cell in cells:
+        page.clear(cell, cell)
 
 
 def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
