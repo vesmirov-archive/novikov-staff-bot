@@ -10,8 +10,20 @@ schedule:
 day:
 	poetry run python notifier.py -c day
 
+day-law:
+	poetry run python notifier.py -c day-law
+
+day-sales:
+	poetry run python notifier.py -c day-sales
+
 week:
 	poetry run python notifier.py -c week
+
+week-law:
+	poetry run python notifier.py -c week-law
+
+week-sales:
+	poetry run python notifier.py -c week-sales
 
 kpi-first-notify:
 	poetry run python notifier.py -c kpi-first

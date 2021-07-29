@@ -40,6 +40,18 @@ def main():
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c day')  # noqa
     notify.setall('0 21 * * 1-5')
 
+    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c day-law')  # noqa
+    notify.setall('2 21 * * 1-5')
+
+    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c day-sales')  # noqa
+    notify.setall('4 21 * * 1-5')
+
+    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week-law')  # noqa
+    notify.setall('7 21 * * 5')
+
+    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week-sales')  # noqa
+    notify.setall('8 21 * * 5')
+
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week')  # noqa
     notify.setall('5 21 * * 5')
 

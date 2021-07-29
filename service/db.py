@@ -90,6 +90,21 @@ def return_users_ids(cursor):
     return ids
 
 
+def return_ids_of_users_from(cursor, department):
+    """
+        Get ids of all users from department
+    """
+
+    ids = []
+    cursor.execute(
+        f"SELECT user_id FROM employees WHERE department='{department}'")
+    rows = cursor.fetchall()
+
+    for row in rows:
+        ids.append(row[0])
+    return ids
+
+
 def add_user(cursor, connect, user_id, username,
              firstname, lastname, department, position, is_admin):
     """

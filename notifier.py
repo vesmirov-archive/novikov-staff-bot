@@ -44,7 +44,6 @@ TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
-
 def remind_to_send_kpi(bot, manager, second=False):
     """
         Notifications abount sending KPI values
@@ -189,6 +188,69 @@ def send_weekly_results(bot, manager):
             bot.send_message(recipient_id, '\n'.join(result))
 
 
+def send_department_daily_results(bot, manager, cursor, department):
+    """
+        Send department daily results to employees
+    """
+
+    ids = db.return_ids_of_users_from(cursor, department)
+
+    kpi_daily = spredsheet.get_daily_statistic(
+        manager,
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets'][department],
+        department
+    )
+
+    result = ['Статистика за день \U0001f4c6\n']
+    result.extend([f'{k}: {v}' for k, v in kpi_daily.items()])
+
+    for id in ids:
+        bot.send_message(id, '\n'.join(result))
+
+    result = ['Статистика по сотрудникам \U0001F465\n']
+
+    kpi_daily_detail = spredsheet.get_daily_detail_statistic(
+        manager,
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets'][department],
+        department
+    )
+    for position, employees in kpi_daily_detail.items():
+        employees_result = []
+        if employees:
+            for employee, values in employees.items():
+                employees_result.append(f'\n\U0001F464 {employee}:\n')
+                employees_result.append(
+                    '\n'.join([f'{k}: {v}' for k, v in values.items()]))
+            result.append(f'\n\n\U0001F53D {position.upper()}')
+            result.append('\n'.join(employees_result))
+
+    for id in ids:
+        bot.send_message(id, '\n'.join(result))
+
+
+def send_department_weekly_results(bot, manager, cursor, department):
+    """
+        Send department daily results to employees
+    """
+
+    ids = db.return_ids_of_users_from(cursor, department)
+
+    kpi_daily = spredsheet.get_weekly_statistic(
+        manager,
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets'][department],
+        department
+    )
+
+    result = ['Статистика за неделю \U0001f5d3\n']
+    result.extend([f'{k}: {v}' for k, v in kpi_daily.items()])
+
+    for id in ids:
+        bot.send_message(id, '\n'.join(result))
+
+
 def remind_to_send_lawsuits(bot):
     """
         Notifications abount sending lawsuits
@@ -215,11 +277,22 @@ def main():
 
     bot = telebot.TeleBot(TOKEN)
     manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
+    connect, cursor = db.connect_database(env)
 
     if args.config == 'day':
         send_daily_results(bot, manager)
+    elif args.config == 'day-law':
+        send_department_daily_results(
+            bot, manager, cursor, 'делопроизводство')
+    elif args.config == 'day-sales':
+        send_department_daily_results(bot, manager, cursor, 'продажи')
     elif args.config == 'week':
         send_weekly_results(bot, manager)
+    elif args.config == 'week-law':
+        send_department_weekly_results(
+            bot, manager, cursor, 'делопроизводство')
+    elif args.config == 'week-sales':
+        send_department_weekly_results(bot, manager, cursor, 'продажи')
     elif args.config == 'kpi-first':
         remind_to_send_kpi(bot, manager)
     elif args.config == 'kpi-second':
@@ -235,6 +308,7 @@ def main():
     elif args.config == 'lawsuits':
         remind_to_send_lawsuits(bot)
 
+    connect.close()
 
 if __name__ == '__main__':
     main()
