@@ -41,10 +41,13 @@ def main():
     notify.setall('0 21 * * 1-5')
 
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c day-law')  # noqa
-    notify.setall('2 21 * * 1-5')
+    notify.setall('1 21 * * 1-5')
 
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c day-sales')  # noqa
-    notify.setall('4 21 * * 1-5')
+    notify.setall('2 21 * * 1-5')
+
+    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c day-head')  # noqa
+    notify.setall('3 21 * * 1-5')
 
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week-law')  # noqa
     notify.setall('7 21 * * 5')
@@ -52,11 +55,17 @@ def main():
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week-sales')  # noqa
     notify.setall('8 21 * * 5')
 
+    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week-head')  # noqa
+    notify.setall('9 21 * * 5')
+
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c week')  # noqa
     notify.setall('5 21 * * 5')
 
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c lawsuits')  # noqa
     notify.setall('0 18 * * 5')
+
+    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c income')  # noqa
+    notify.setall('0 21 * * 1-5')
 
     update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c week-sales')  # noqa
     update.setall('0 22 * * 0')

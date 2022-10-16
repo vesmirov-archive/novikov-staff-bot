@@ -69,6 +69,7 @@ plan = telebot.types.InlineKeyboardButton('мой план \U0001f4b5')
 today_btn = telebot.types.InlineKeyboardButton('день \U0001f4c6')
 week_btn = telebot.types.InlineKeyboardButton('неделя \U0001f5d3')
 lawsuits_btn = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
+income_btn = telebot.types.InlineKeyboardButton('выручка \U0001f4b0')
 leader_btn = telebot.types.InlineKeyboardButton('красавчики \U0001F3C6')
 announce_btn = telebot.types.InlineKeyboardButton('объявление \U0001f4ef')
 menu_markup.add(
@@ -77,6 +78,7 @@ menu_markup.add(
     today_btn,
     week_btn,
     lawsuits_btn,
+    income_btn,
     leader_btn,
     announce_btn
 )
@@ -87,7 +89,9 @@ sales_day_btn = telebot.types.InlineKeyboardButton(
     'продажи', callback_data='день продажи')
 law_day_btn = telebot.types.InlineKeyboardButton(
     'делопроизводство', callback_data='день делопроизводство')
-stat_day_markup.add(sales_day_btn, law_day_btn)
+head_day_markup = telebot.types.InlineKeyboardButton(
+    'руководство', callback_data='день руководство')
+stat_day_markup.add(sales_day_btn, law_day_btn, head_day_markup)
 
 # statistic week keyboard
 stat_week_markup = telebot.types.InlineKeyboardMarkup()
@@ -95,7 +99,9 @@ sales_week_btn = telebot.types.InlineKeyboardButton(
     'продажи', callback_data='неделя продажи')
 law_week_btn = telebot.types.InlineKeyboardButton(
     'делопроизводство', callback_data='неделя делопроизводство')
-stat_week_markup.add(sales_week_btn, law_week_btn)
+head_week_markup = telebot.types.InlineKeyboardButton(
+    'руководство', callback_data='неделя руководство')
+stat_week_markup.add(sales_week_btn, law_week_btn, head_week_markup)
 
 # leader keyboard
 leader_markup = telebot.types.InlineKeyboardMarkup()
@@ -542,6 +548,48 @@ def week_statistic(call):
     bot.send_message(call.message.chat.id, '\n'.join(result))
 
 
+@bot.message_handler(regexp=r'выручка\S*')
+@permission_check
+@user_is_admin_check
+def start_day_income(message):
+    """
+        Get specific value from user (income)
+    """
+
+    bot.send_message(
+        message.from_user.id,
+        f'Привет {message.from_user.first_name}!\n'
+        'Какая сумма выручки на сегодня?'
+    )
+    bot.register_next_step_handler(message, day_income)
+
+def day_income(message):
+    """
+        Value getting process (income)
+    """
+
+    if message.text.isnumeric():
+        status = spredsheet.write_income_to_google_sheet(
+            manager,
+        CONFIG['google']['tables']['KPI']['table'],
+        CONFIG['google']['tables']['KPI']['sheets']['руководство'],
+            message.text
+        )
+        if status:
+            bot.send_message(
+                message.from_user.id,
+                'Спасибо! Данные внесены \u2705'
+            )
+        else:
+            bot.send_message(message.from_user.id, 'Что-то пошло не так.')
+    else:
+        bot.send_message(
+            message.from_user.id,
+            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные '
+            'в числовом формате \u261d\U0001f3fb'
+        )
+
+
 @bot.message_handler(regexp=r'иски\S*')
 @permission_check
 @user_is_admin_check
@@ -678,9 +726,12 @@ def send_announcement(message, **kwargs):
         )
 
 
-try:
-    bot.polling()
-except Exception as e:
-    print(e)
+if __name__ == '__main__':
+    while True:
+        try:
+            bot.polling()
+        except Exception as e:
+            time.sleep(5)
+            print(e)
 
 connect.close()
