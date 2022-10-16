@@ -127,6 +127,22 @@ def write_lawsuits_to_google_sheet(manager, sheet_key, page_id, value):
     return True
 
 
+def write_income_to_google_sheet(manager, sheet_key, page_id, value):
+    """
+        Update specific cells with given values (income)
+    """
+
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+    diff = datetime.date.today() - START_DATE
+    row = str(diff.days + ROW_SHIFT)
+    col = CONFIG['сводка']['руководство']['KPI день']['выручка']
+
+    page.update_value(col + row, value)
+
+    return True
+
+
 def get_daily_statistic(manager, sheet_key, page_id, department):
     """
         Get all values for today

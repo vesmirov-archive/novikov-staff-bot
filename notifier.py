@@ -23,6 +23,7 @@ from messages import (
     KPI_SECOND_MESSAGE,
     FAIL_MESSAGE,
     LAWSUITS_MESSAGE,
+    INCOME_MESSAGE,
     DAY_PLAN_MESSAGE,
     DAY_PLAN_SECOND_MESSAGE,
     WEEK_PLAN_MESSAGE,
@@ -144,18 +145,17 @@ def send_daily_results(bot, manager):
 
         leaders = []
         for department, values in department_leaders.items():
-            if values:
-                leaders.append(
-                    f'\U0001f38a {department.capitalize()}: ' +
-                    ', '.join(values)
-                )
-            else:
-                leaders.append(
-                    f'\U0001f5ff {department.capitalize()}: ' +
-                    'Красавчиков дня нет'
-                )
-            # temporary solution for exluding 'продажи' from leader statistics
-            break
+            if department == 'делопроизводство':
+                if values:
+                    leaders.append(
+                        f'\U0001f38a {department.capitalize()}: ' +
+                        ', '.join(values)
+                    )
+                else:
+                    leaders.append(
+                        f'\U0001f5ff {department.capitalize()}: ' +
+                        'Красавчиков дня нет'
+                    )
         bot.send_message(recipient_id, '\n\n'.join(leaders))
 
 
@@ -253,7 +253,7 @@ def send_department_weekly_results(bot, manager, cursor, department):
 
 def remind_to_send_lawsuits(bot):
     """
-        Notifications abount sending lawsuits
+        Notifications abont sending lawsuits
     """
 
     ids = map(str, CONFIG['иски'].values())
@@ -270,6 +270,25 @@ def remind_to_send_lawsuits(bot):
         bot.send_message(user_id, LAWSUITS_MESSAGE)
 
 
+def remind_to_send_income(bot):
+    """
+        Notifications abont sending income
+    """
+
+    ids = map(str, CONFIG['выручка'].values())
+
+    connect, cursor = db.connect_database(env)
+    cursor.execute(
+        "SELECT user_id FROM employees "
+        f"WHERE user_id IN ({', '.join(ids)})"
+    )
+    users = cursor.fetchall()
+
+    for user in users:
+        user_id = user[0]
+        bot.send_message(user_id, INCOME_MESSAGE)
+
+
 def main():
     """
         Notification manager
@@ -282,17 +301,17 @@ def main():
     if args.config == 'day':
         send_daily_results(bot, manager)
     elif args.config == 'day-law':
-        send_department_daily_results(
-            bot, manager, cursor, 'делопроизводство')
+        send_department_daily_results(bot, manager, cursor, 'делопроизводство')
     elif args.config == 'day-sales':
         send_department_daily_results(bot, manager, cursor, 'продажи')
     elif args.config == 'week':
         send_weekly_results(bot, manager)
     elif args.config == 'week-law':
-        send_department_weekly_results(
-            bot, manager, cursor, 'делопроизводство')
+        send_department_weekly_results(bot, manager, cursor, 'делопроизводство')
     elif args.config == 'week-sales':
         send_department_weekly_results(bot, manager, cursor, 'продажи')
+    elif args.config == 'week-head':
+        send_department_weekly_results(bot, manager, cursor, 'руководство')
     elif args.config == 'kpi-first':
         remind_to_send_kpi(bot, manager)
     elif args.config == 'kpi-second':
@@ -307,6 +326,8 @@ def main():
         remind_to_send_plan(bot, manager, 'неделя', True)
     elif args.config == 'lawsuits':
         remind_to_send_lawsuits(bot)
+    elif args.config == 'income':
+        remind_to_send_income(bot)
 
     connect.close()
 
