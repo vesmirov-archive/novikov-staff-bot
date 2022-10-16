@@ -281,3 +281,29 @@ def get_leaders_from_google_sheet(manager, sheet_key, page_id, department):
                 leaders.append(name)
     return leaders
 
+
+def get_general_motivation(manager, sheet_key, page_id):
+    """
+        Get general motivation
+    """
+    motivation = {}
+
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)
+
+    for cat_name, periods in CONFIG['мотивация'].items():
+        motivation[cat_name] = {}
+        for period, values in periods.items():
+            motivation[cat_name][period] = {rate, page.get_value(cell) in values.items() if cell}
+
+    return motivation
+
+
+def get_personal_motivation(manager, sheet_key, page_id, person_id):
+    """
+        Get personal motivation
+    """
+    motivation = {}
+
+    sheet = manager.open_by_key(sheet_key)
+    page = sheet.worksheet('id', page_id)

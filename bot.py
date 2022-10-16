@@ -68,19 +68,22 @@ kpi_btn = telebot.types.InlineKeyboardButton('мои показатели \U0001
 plan = telebot.types.InlineKeyboardButton('мой план \U0001f4b5')
 today_btn = telebot.types.InlineKeyboardButton('день \U0001f4c6')
 week_btn = telebot.types.InlineKeyboardButton('неделя \U0001f5d3')
+motivation_btn = telebot.types.InlineKeyboardButton('мотивация')
 lawsuits_btn = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
 income_btn = telebot.types.InlineKeyboardButton('выручка \U0001f4b0')
 leader_btn = telebot.types.InlineKeyboardButton('красавчики \U0001F3C6')
 announce_btn = telebot.types.InlineKeyboardButton('объявление \U0001f4ef')
+
 menu_markup.add(
     kpi_btn,
     plan,
     today_btn,
     week_btn,
+    motivation_btn,
     lawsuits_btn,
     income_btn,
     leader_btn,
-    announce_btn
+    announce_btn,
 )
 
 # statistic day keyboard
@@ -546,6 +549,18 @@ def week_statistic(call):
     bot.send_message(call.message.chat.id, 'Статистика за неделю \U0001f5d3')
     result.extend([f'{k}: {v}' for k, v in kpi_daily.items()])
     bot.send_message(call.message.chat.id, '\n'.join(result))
+
+
+@bot.message_handler(regexp=r'мотивация\S*')
+@permission_check
+@user_is_admin_check
+def get_general_motivation(message):
+    general_motivation = spreadsheet.get_general_motivation(
+        manager,
+        CONFIG['google']['tables']['мотивация']['table'],
+        CONFIG['google']['tables']['мотивация']['sheets']['показатели'],
+    )
+    bot.send_message(message.chat.id, str(general_motivation))
 
 
 @bot.message_handler(regexp=r'выручка\S*')
