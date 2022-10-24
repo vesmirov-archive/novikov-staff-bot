@@ -76,6 +76,9 @@ def main():
     update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c day-sales')  # noqa
     update.setall('10 22 * * 1-5')
 
+    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c general-motivation')
+    update.setall('0 22 * * 1-5')
+
     cron.write()
 
 

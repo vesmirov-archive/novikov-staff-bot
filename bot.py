@@ -2,10 +2,11 @@
     Bot's module with specified commands
 """
 import json
+import time
 
-from dotenv import dotenv_values
 import pygsheets
 import telebot
+from dotenv import dotenv_values
 
 from messages import (
     DENY_MESSAGE,
@@ -72,6 +73,7 @@ lawsuits_btn = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
 income_btn = telebot.types.InlineKeyboardButton('выручка \U0001f4b0')
 leader_btn = telebot.types.InlineKeyboardButton('красавчики \U0001F3C6')
 announce_btn = telebot.types.InlineKeyboardButton('объявление \U0001f4ef')
+
 menu_markup.add(
     kpi_btn,
     plan,
@@ -80,7 +82,7 @@ menu_markup.add(
     lawsuits_btn,
     income_btn,
     leader_btn,
-    announce_btn
+    announce_btn,
 )
 
 # statistic day keyboard
@@ -563,6 +565,7 @@ def start_day_income(message):
     )
     bot.register_next_step_handler(message, day_income)
 
+
 def day_income(message):
     """
         Value getting process (income)
@@ -733,5 +736,3 @@ if __name__ == '__main__':
         except Exception as e:
             time.sleep(5)
             print(e)
-
-connect.close()

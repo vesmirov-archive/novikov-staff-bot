@@ -16,6 +16,9 @@ client_secret.json
 sheets.googleapis.com-python.json
 service_account_credentials.json
 
+# IDE
+.idea
+
 # other
 config.json
 TODO
