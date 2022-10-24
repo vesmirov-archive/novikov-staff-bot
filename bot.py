@@ -2,10 +2,11 @@
     Bot's module with specified commands
 """
 import json
+import time
 
-from dotenv import dotenv_values
 import pygsheets
 import telebot
+from dotenv import dotenv_values
 
 from messages import (
     DENY_MESSAGE,
@@ -68,7 +69,6 @@ kpi_btn = telebot.types.InlineKeyboardButton('мои показатели \U0001
 plan = telebot.types.InlineKeyboardButton('мой план \U0001f4b5')
 today_btn = telebot.types.InlineKeyboardButton('день \U0001f4c6')
 week_btn = telebot.types.InlineKeyboardButton('неделя \U0001f5d3')
-motivation_btn = telebot.types.InlineKeyboardButton('мотивация')
 lawsuits_btn = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
 income_btn = telebot.types.InlineKeyboardButton('выручка \U0001f4b0')
 leader_btn = telebot.types.InlineKeyboardButton('красавчики \U0001F3C6')
@@ -79,7 +79,6 @@ menu_markup.add(
     plan,
     today_btn,
     week_btn,
-    motivation_btn,
     lawsuits_btn,
     income_btn,
     leader_btn,
@@ -551,18 +550,6 @@ def week_statistic(call):
     bot.send_message(call.message.chat.id, '\n'.join(result))
 
 
-@bot.message_handler(regexp=r'мотивация\S*')
-@permission_check
-@user_is_admin_check
-def get_general_motivation(message):
-    general_motivation = spreadsheet.get_general_motivation(
-        manager,
-        CONFIG['google']['tables']['мотивация']['table'],
-        CONFIG['google']['tables']['мотивация']['sheets']['показатели'],
-    )
-    bot.send_message(message.chat.id, str(general_motivation))
-
-
 @bot.message_handler(regexp=r'выручка\S*')
 @permission_check
 @user_is_admin_check
@@ -577,6 +564,7 @@ def start_day_income(message):
         'Какая сумма выручки на сегодня?'
     )
     bot.register_next_step_handler(message, day_income)
+
 
 def day_income(message):
     """
@@ -748,5 +736,3 @@ if __name__ == '__main__':
         except Exception as e:
             time.sleep(5)
             print(e)
-
-connect.close()

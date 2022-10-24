@@ -293,8 +293,11 @@ def get_general_motivation(manager, sheet_key, page_id):
 
     for cat_name, periods in CONFIG['мотивация'].items():
         motivation[cat_name] = {}
-        for period, values in periods.items():
-            motivation[cat_name][period] = {rate, page.get_value(cell) in values.items() if cell}
+        for period, cells in periods.items():
+            motivation[cat_name][period] = {
+                'план': ''.join(page.get_value(cells['план']).split('\xa0')) if cells['план'] else 'нет',
+                'факт': ''.join(page.get_value(cells['факт']).split('\xa0')) if cells['факт'] else 'нет',
+            }
 
     return motivation
 
