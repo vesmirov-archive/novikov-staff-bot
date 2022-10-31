@@ -19,7 +19,7 @@ def main():
     try:
         cursor.execute(
             'CREATE TABLE employees ('
-            'user_id INT NOT NULL UNIQUE,'
+            'user_id BIGINT NOT NULL UNIQUE,'
             'username VARCHAR(100) NOT NULL,'
             'firstname VARCHAR(100) NOT NULL,'
             'lastname VARCHAR(100),'
