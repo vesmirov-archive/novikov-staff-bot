@@ -730,10 +730,9 @@ def _send_announcement(message, **kwargs):
 
 
 if __name__ == '__main__':
-    # while True:
-    #     try:
-    #         bot.polling()
-    #     except Exception as e:
-    #         time.sleep(5)
-    #         print(e)
-    bot.polling()
+    while True:
+        try:
+            bot.polling()
+        except Exception as e:
+            time.sleep(5)
+            print(e)
