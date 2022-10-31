@@ -169,10 +169,10 @@ def start_adding_user(message):
     """
 
     message = bot.send_message(message.from_user.id, USER_ADD_MESSAGE)
-    bot.register_next_step_handler(message, adding_user)
+    bot.register_next_step_handler(message, _adding_user)
 
 
-def adding_user(message):
+def _adding_user(message):
     """
         User adding process
     """
@@ -231,10 +231,10 @@ def start_deleting_user(message):
     """
 
     message = bot.send_message(message.from_user.id, USER_DELETE_MESSAGE)
-    bot.register_next_step_handler(message, deleting_user)
+    bot.register_next_step_handler(message, _deleting_user)
 
 
-def deleting_user(message):
+def _deleting_user(message):
     """
         User deleting process
     """
@@ -289,7 +289,7 @@ def prepate_set_plan(call):
                     call.from_user.id,
                     '\n'.join(employee['планирование'][kwargs['period']]['текущая']['план'].keys())  # noqa
                 )
-                bot.register_next_step_handler(message, set_plan, **kwargs)
+                bot.register_next_step_handler(message, _set_plan, **kwargs)
             else:
                 bot.send_message(
                     call.from_user.id,
@@ -303,7 +303,7 @@ def prepate_set_plan(call):
             )
 
 
-def set_plan(message, **kwargs):
+def _set_plan(message, **kwargs):
     """
         Setting personal plan
     """
@@ -380,7 +380,7 @@ def start_kpi_check(message):
                 message.from_user.id,
                 MESSAGES_CONFIG[department][position]['message']
             )
-            bot.register_next_step_handler(message, kpi_check, **kwargs)
+            bot.register_next_step_handler(message, _kpi_check, **kwargs)
         else:
             bot.send_message(
                 message.from_user.id,
@@ -394,7 +394,7 @@ def start_kpi_check(message):
         )
 
 
-def kpi_check(message, **kwargs):
+def _kpi_check(message, **kwargs):
     """
         Values getting process
     """
@@ -563,10 +563,10 @@ def start_day_income(message):
         f'Привет {message.from_user.first_name}!\n'
         'Какая сумма выручки на сегодня?'
     )
-    bot.register_next_step_handler(message, day_income)
+    bot.register_next_step_handler(message, _day_income)
 
 
-def day_income(message):
+def _day_income(message):
     """
         Value getting process (income)
     """
@@ -606,10 +606,10 @@ def start_week_lawsuits(message):
         f'Привет {message.from_user.first_name}!\n'
         'Сколько было подано исков на этой неделе?'
     )
-    bot.register_next_step_handler(message, week_lawsuits)
+    bot.register_next_step_handler(message, _week_lawsuits)
 
 
-def week_lawsuits(message):
+def _week_lawsuits(message):
     """
         Value getting process (lawsuits)
     """
@@ -691,10 +691,10 @@ def start_make_announcement(message):
         'Пришли мне текст сообщения, а я отправлю '
         'его всем сотрудникам \U0001f4dd'
     )
-    bot.register_next_step_handler(message, make_announcement)
+    bot.register_next_step_handler(message, _make_announcement)
 
 
-def make_announcement(message):
+def _make_announcement(message):
     """
         Get announcement
     """
@@ -702,10 +702,10 @@ def make_announcement(message):
     ids = db.return_users_ids(cursor)
     kwargs = {'text': message.text, 'ids': ids}
     bot.send_message(message.from_user.id, 'Записал. Отправляем? (да/нет)')
-    bot.register_next_step_handler(message, send_announcement, **kwargs)
+    bot.register_next_step_handler(message, _send_announcement, **kwargs)
 
 
-def send_announcement(message, **kwargs):
+def _send_announcement(message, **kwargs):
     """
         Announcement sending confirmation
     """
@@ -730,9 +730,10 @@ def send_announcement(message, **kwargs):
 
 
 if __name__ == '__main__':
-    while True:
-        try:
-            bot.polling()
-        except Exception as e:
-            time.sleep(5)
-            print(e)
+    # while True:
+    #     try:
+    #         bot.polling()
+    #     except Exception as e:
+    #         time.sleep(5)
+    #         print(e)
+    bot.polling()

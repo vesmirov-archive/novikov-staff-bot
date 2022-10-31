@@ -302,7 +302,7 @@ def get_general_motivation(manager, sheet_key, page_id):
     return motivation
 
 
-def get_personal_motivation(manager, sheet_key, page_id, person_id):
+def get_personal_motivation(manager, sheet_key, page_id):
     """
         Get personal motivation
     """
@@ -310,3 +310,12 @@ def get_personal_motivation(manager, sheet_key, page_id, person_id):
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
+
+    for cat_name, employees in CONFIG['мотивация сотрудники'].items():
+        motivation[cat_name] = {}
+        for employee, periods in employees.items():
+            motivation[cat_name][employee] = {}
+            for period, cell in periods.items():
+                motivation[cat_name][employee][period] = ''.join(page.get_value(cell).split('\xa0'))
+
+    return motivation

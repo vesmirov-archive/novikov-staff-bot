@@ -19,6 +19,13 @@ def main():
     cron.env['HOME'] = f'/home/{USER}'
     cwd = os.getcwd()
 
+    # notifier
+    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c general-motivation')
+    update.setall('0 22 * * 1-5')
+
+    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c personal-motivation')
+    update.setall('1 22 * * 1-5')
+
     notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c kpi-first')  # noqa
     notify.setall('0 20 * * 1-5')
 
@@ -70,14 +77,12 @@ def main():
     update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c week-sales')  # noqa
     update.setall('0 22 * * 0')
 
+    # updater
     update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c week-law')  # noqa
     update.setall('5 22 * * 0')
 
     update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/updater.py -c day-sales')  # noqa
     update.setall('10 22 * * 1-5')
-
-    update = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/notifier.py -c general-motivation')
-    update.setall('0 22 * * 1-5')
 
     cron.write()
 
