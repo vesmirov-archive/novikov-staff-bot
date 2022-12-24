@@ -1,23 +1,14 @@
 """
-    Bot's module with specified commands
+    Main module
 """
-import json
-import time
 
+import json
 import pygsheets
 import telebot
+import time
 from dotenv import dotenv_values
 
-from messages import (
-    DENY_MESSAGE,
-    DENY_ANONIMUS_MESSAGE,
-    HELP_MESSAGE,
-    MESSAGES_CONFIG,
-    PLAN_MESSAGE,
-    START_MESSAGE,
-    USER_ADD_MESSAGE,
-    USER_DELETE_MESSAGE,
-)
+import messages
 from service import db
 from service import spredsheet
 
@@ -25,45 +16,19 @@ env = dotenv_values('.env')
 
 TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 CHAT = env.get('TELEGRAM_CHAT_ID')
-
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
 with open('config.json', 'r') as file:
     CONFIG = json.loads(file.read())
 
-
-def permission_check(func):
-    """
-        User permission check decorator.
-        If user's id not in database, send 'deny access' message
-    """
-
-    def inner(message):
-        if db.user_has_permissions(cursor, message.from_user.id):
-            func(message)
-        else:
-            bot.send_message(message.from_user.id, DENY_ANONIMUS_MESSAGE)
-    return inner
-
-
-def user_is_admin_check(func):
-    """
-        Admin permission check decorator
-    """
-
-    def inner(message):
-        if db.user_is_admin_check(cursor, message.from_user.id):
-            func(message)
-        else:
-            bot.send_message(message.from_user.id, DENY_MESSAGE)
-    return inner
-
-
 bot = telebot.TeleBot(TOKEN)
 manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
 connect, cursor = db.connect_database(env)
 
-# main keyboard
+
+
+
+
 menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
 kpi_btn = telebot.types.InlineKeyboardButton('мои показатели \U0001f3af')
 plan = telebot.types.InlineKeyboardButton('мой план \U0001f4b5')
@@ -121,7 +86,7 @@ plan_makup.add(plan_day_btn, plan_week_btn)
 
 
 @bot.message_handler(commands=['start'])
-@permission_check
+@user_has_permission
 def send_welcome(message):
     """
         Greet user
@@ -134,7 +99,7 @@ def send_welcome(message):
 
 
 @bot.message_handler(commands=['help'])
-@permission_check
+@user_has_permission
 def send_help_text(message):
     """
         Send help-text to user
@@ -150,7 +115,7 @@ def send_help_text(message):
 
 
 @bot.message_handler(commands=['users'])
-@permission_check
+@user_has_permission
 def send_list_users(message):
     """
         Show all added users to this bot
@@ -161,8 +126,8 @@ def send_list_users(message):
 
 
 @bot.message_handler(commands=['adduser'])
-@permission_check
-@user_is_admin_check
+@user_has_permission
+@user_is_admin
 def start_adding_user(message):
     """
         Add user to this bot
@@ -223,8 +188,8 @@ def _adding_user(message):
 
 
 @bot.message_handler(commands=['deluser'])
-@permission_check
-@user_is_admin_check
+@user_has_permission
+@user_is_admin
 def start_deleting_user(message):
     """
         Delete user
@@ -363,7 +328,7 @@ def _set_plan(message, **kwargs):
 
 
 @bot.message_handler(regexp=r'мои показатели\S*')
-@permission_check
+@user_has_permission
 def start_kpi_check(message):
     """
         Get today's values from user
@@ -446,7 +411,7 @@ def _kpi_check(message, **kwargs):
 
 
 @bot.message_handler(regexp=r'день\S*')
-@permission_check
+@user_has_permission
 def day_statistic_start_message(message):
     """
         Ask of which division statistic is needed
@@ -509,7 +474,7 @@ def day_statistic(call):
 
 
 @bot.message_handler(regexp=r'неделя\S*')
-@permission_check
+@user_has_permission
 def week_statistic_start_message(message):
     """
         Ask of which division statistic is needed
@@ -551,8 +516,8 @@ def week_statistic(call):
 
 
 @bot.message_handler(regexp=r'выручка\S*')
-@permission_check
-@user_is_admin_check
+@user_has_permission
+@user_is_admin
 def start_day_income(message):
     """
         Get specific value from user (income)
@@ -594,8 +559,8 @@ def _day_income(message):
 
 
 @bot.message_handler(regexp=r'иски\S*')
-@permission_check
-@user_is_admin_check
+@user_has_permission
+@user_is_admin
 def start_week_lawsuits(message):
     """
         Get specific value from user (lawsuits)
@@ -637,7 +602,7 @@ def _week_lawsuits(message):
 
 
 @bot.message_handler(regexp=r'красавчик\S*')
-@permission_check
+@user_has_permission
 def show_the_leader_start_message(message):
     """
         Ask of which division statistic is needed
@@ -678,8 +643,8 @@ def show_the_leader(call):
 
 
 @bot.message_handler(regexp=r'объявление\S*')
-@permission_check
-@user_is_admin_check
+@user_has_permission
+@user_is_admin
 def start_make_announcement(message):
     """
         Make an announcement for all added users

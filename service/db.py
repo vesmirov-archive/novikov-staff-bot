@@ -22,28 +22,21 @@ def connect_database(env):
     return (connect, cursor)
 
 
-def user_has_permissions(cursor, user_id):
-    """
-        Check if given id saved in databse
-    """
+def user_exists(cursor, user_id):
+    """Search for the given user_id in DB"""
 
     cursor.execute("SELECT user_id FROM employees")
-    rows = cursor.fetchall()
-    for row in rows:
+    for row in cursor.fetchall():
         if user_id in row:
             return True
     return False
 
 
-def user_is_admin_check(cursor, user_id):
-    """
-        Check if given id saved in databse
-    """
+def user_is_admin(cursor, user_id):
+    """Check if the user with given ID is admin"""
 
-    cursor.execute(
-        f"SELECT is_admin FROM employees WHERE user_id = {user_id}")
-    rows = cursor.fetchall()
-    for row in rows[0]:
+    cursor.execute(f"SELECT is_admin FROM employees WHERE user_id = {user_id}")
+    for row in cursor.fetchall()[0]:
         if row:
             return True
     return False
