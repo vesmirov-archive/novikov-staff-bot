@@ -1,7 +1,3 @@
-"""
-    Main module
-"""
-
 import json
 import pygsheets
 import telebot
@@ -18,6 +14,7 @@ TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 CHAT = env.get('TELEGRAM_CHAT_ID')
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
+# TODO: stop using json config (#6)
 with open('config.json', 'r') as file:
     CONFIG = json.loads(file.read())
 
@@ -26,100 +23,109 @@ manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
 connect, cursor = db.connect_database(env)
 
 
+# Keyboards
 
-
-
-menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
-kpi_btn = telebot.types.InlineKeyboardButton('мои показатели \U0001f3af')
-plan = telebot.types.InlineKeyboardButton('мой план \U0001f4b5')
-today_btn = telebot.types.InlineKeyboardButton('день \U0001f4c6')
-week_btn = telebot.types.InlineKeyboardButton('неделя \U0001f5d3')
-lawsuits_btn = telebot.types.InlineKeyboardButton('иски \U0001f5ff')
-income_btn = telebot.types.InlineKeyboardButton('выручка \U0001f4b0')
-leader_btn = telebot.types.InlineKeyboardButton('красавчики \U0001F3C6')
-announce_btn = telebot.types.InlineKeyboardButton('объявление \U0001f4ef')
-
+menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
 menu_markup.add(
-    kpi_btn,
-    plan,
-    today_btn,
-    week_btn,
-    lawsuits_btn,
-    income_btn,
-    leader_btn,
-    announce_btn,
+    telebot.types.InlineKeyboardButton('мои показатели \U0001f3af'),
+    telebot.types.InlineKeyboardButton('мой план \U0001f4b5'),
+    telebot.types.InlineKeyboardButton('день \U0001f4c6'),
+    telebot.types.InlineKeyboardButton('неделя \U0001f5d3'),
+    telebot.types.InlineKeyboardButton('иски \U0001f5ff'),
+    telebot.types.InlineKeyboardButton('выручка \U0001f4b0'),
+    telebot.types.InlineKeyboardButton('красавчики \U0001F3C6'),
+    telebot.types.InlineKeyboardButton('объявление \U0001f4ef'),
 )
 
-# statistic day keyboard
 stat_day_markup = telebot.types.InlineKeyboardMarkup()
-sales_day_btn = telebot.types.InlineKeyboardButton(
-    'продажи', callback_data='день продажи')
-law_day_btn = telebot.types.InlineKeyboardButton(
-    'делопроизводство', callback_data='день делопроизводство')
-head_day_markup = telebot.types.InlineKeyboardButton(
-    'руководство', callback_data='день руководство')
-stat_day_markup.add(sales_day_btn, law_day_btn, head_day_markup)
+stat_day_markup.add(
+    telebot.types.InlineKeyboardButton('продажи', callback_data='день продажи'),
+    telebot.types.InlineKeyboardButton('делопроизводство', callback_data='день делопроизводство'),
+    telebot.types.InlineKeyboardButton('руководство', callback_data='день руководство'),
+)
 
-# statistic week keyboard
 stat_week_markup = telebot.types.InlineKeyboardMarkup()
-sales_week_btn = telebot.types.InlineKeyboardButton(
-    'продажи', callback_data='неделя продажи')
-law_week_btn = telebot.types.InlineKeyboardButton(
-    'делопроизводство', callback_data='неделя делопроизводство')
-head_week_markup = telebot.types.InlineKeyboardButton(
-    'руководство', callback_data='неделя руководство')
-stat_week_markup.add(sales_week_btn, law_week_btn, head_week_markup)
+stat_week_markup.add(
+    telebot.types.InlineKeyboardButton('продажи', callback_data='неделя продажи'),
+    telebot.types.InlineKeyboardButton('делопроизводство', callback_data='неделя делопроизводство'),
+    telebot.types.InlineKeyboardButton('руководство', callback_data='неделя руководство'),
+)
 
-# leader keyboard
 leader_markup = telebot.types.InlineKeyboardMarkup()
-law_leader_btn = telebot.types.InlineKeyboardButton(
-    'делопроизводство', callback_data='красавчик делопроизводство')
-leader_markup.add(law_leader_btn)
+leader_markup.add(
+    telebot.types.InlineKeyboardButton('делопроизводство', callback_data='красавчик делопроизводство'),
+)
 
-# plan keyboard
 plan_makup = telebot.types.InlineKeyboardMarkup()
-plan_day_btn = telebot.types.InlineKeyboardButton(
-    'на день', callback_data='план день')
-plan_week_btn = telebot.types.InlineKeyboardButton(
-    'на неделю', callback_data='план неделя')
-plan_makup.add(plan_day_btn, plan_week_btn)
+plan_makup.add(
+    telebot.types.InlineKeyboardButton('на день', callback_data='план день'),
+    telebot.types.InlineKeyboardButton('на неделю', callback_data='план неделя'),
+)
 
+
+# Permissions
+
+def user_has_permission(func):
+    """
+    Permission decorator.
+    Checks if the telegram user is in DB and has access to the bot.
+    Otherwise, sends an error message.
+    """
+
+    def inner(message):
+        if db.user_exists(cursor, message.from_user.id):
+            func(message)
+        else:
+            bot.send_message(message.from_user.id, messages.DENY_ANONIMUS_MESSAGE)
+    return inner
+
+
+def user_is_admin(func):
+    """
+    Permission decorator.
+    Checks if the telegram user is admin (DB: "is_admin" field).
+    Otherwise, sends an error message.
+    """
+
+    def inner(message):
+        if db.user_is_admin(cursor, message.from_user.id):
+            func(message)
+        else:
+            bot.send_message(message.from_user.id, messages.DENY_MESSAGE)
+    return inner
+
+
+# Bot commands actions
 
 @bot.message_handler(commands=['start'])
 @user_has_permission
 def send_welcome(message):
-    """
-        Greet user
-    """
+    """TODO"""
 
     user_id = message.from_user.id
     name = message.from_user.first_name
-    bot.send_message(
-        user_id, START_MESSAGE.format(name), reply_markup=menu_markup)
+    bot.send_message(user_id, messages.START_MESSAGE.format(name), reply_markup=menu_markup)
 
 
 @bot.message_handler(commands=['help'])
 @user_has_permission
 def send_help_text(message):
-    """
-        Send help-text to user
-    """
+    """TODO"""
 
     bot.send_message(
         message.from_user.id,
-        HELP_MESSAGE.format(
+        messages.HELP_MESSAGE.format(
+            # TODO: stop using json config (#6)
             CONFIG['google']['tables']['KPI']['table'],
-            CONFIG['google']['tables']['план']['table']
-        )
+            CONFIG['google']['tables']['план']['table'],
+        ),
     )
 
 
 @bot.message_handler(commands=['users'])
 @user_has_permission
 def send_list_users(message):
-    """
-        Show all added users to this bot
-    """
+    """TODO"""
 
     users = db.list_users(cursor)
     bot.send_message(message.from_user.id, users)
@@ -128,259 +134,172 @@ def send_list_users(message):
 @bot.message_handler(commands=['adduser'])
 @user_has_permission
 @user_is_admin
-def start_adding_user(message):
-    """
-        Add user to this bot
-    """
+def add_user_command_handler(message):
+    """TODO"""
 
-    message = bot.send_message(message.from_user.id, USER_ADD_MESSAGE)
-    bot.register_next_step_handler(message, _adding_user)
+    def add_user(handler_message):
+        data = handler_message.text.split()
 
-
-def _adding_user(message):
-    """
-        User adding process
-    """
-
-    data = message.text.split()
-
-    if len(data) != 7:
-        bot.send_message(message.from_user.id, 'Неверный формат.')
-        return
-    if data[4] not in MESSAGES_CONFIG.keys():
-        bot.send_message(
-            message.from_user.id,
-            'Указанный отдел не представлен в списке.'
-        )
-        return
-    if data[5] not in MESSAGES_CONFIG[data[4]].keys():
-        bot.send_message(
-            message.from_user.id,
-            'Указанный функционал отсутствует в списке.'
-        )
-    else:
-        try:
-            user_id = int(data[0])
-            username = data[1]
-            firstname = data[2]
-            lastname = data[3]
-            department = data[4]
-            position = data[5]
-            is_admin = True if data[6] == 'да' else False
-
-        except (ValueError, KeyError):
-            bot.send_message(
-                message.from_user.id, 'Неверный формат.')
+        if len(data) != 7:
+            bot.send_message(handler_message.from_user.id, 'Неверный формат.')
+        elif data[4] not in messages.MESSAGES_CONFIG.keys():
+            bot.send_message(handler_message.from_user.id, 'Указанный отдел не представлен в списке.')
+        elif data[5] not in messages.MESSAGES_CONFIG[data[4]].keys():
+            bot.send_message(handler_message.from_user.id, 'Указанный функционал отсутствует в списке.')
         else:
-            status = db.add_user(cursor, connect, user_id, username,
-                                 firstname, lastname, department,
-                                 position, is_admin)
-            if status:
-                bot.send_message(
-                    message.from_user.id,
-                    f'Пользователь "{username}" добавлен.'
-                )
+            try:
+                user_id, username, firstname, lastname, department, position = data[0:6]
+                is_admin = True if data[6] == 'да' else False
+                args = cursor, connect, int(user_id), username, firstname, lastname, department, position, is_admin
+            except (ValueError, KeyError):
+                bot.send_message(handler_message.from_user.id, 'Неверный формат.')
             else:
-                bot.send_message(
-                    message.from_user.id,
-                    'Пользователь с таким ID уже имеется в базе.'
-                )
+                user_added = db.add_user(*args)
+                if user_added:
+                    bot.send_message(handler_message.from_user.id, 'Пользователь добавлен.')
+                else:
+                    bot.send_message(handler_message.from_user.id, f'Пользователь уже добавлен в базу (ID: {user_id}).')
+
+    message = bot.send_message(message.from_user.id, messages.USER_ADD_MESSAGE)
+    bot.register_next_step_handler(message, add_user)
 
 
 @bot.message_handler(commands=['deluser'])
 @user_has_permission
 @user_is_admin
-def start_deleting_user(message):
-    """
-        Delete user
-    """
+def delete_user_command_handler(message):
+    """TODO"""
 
-    message = bot.send_message(message.from_user.id, USER_DELETE_MESSAGE)
-    bot.register_next_step_handler(message, _deleting_user)
+    def delete_user(handler_message):
+        user_id = handler_message.text
+
+        if user_id.isnumeric():
+            db.delete_user(cursor, connect, user_id)
+            bot.send_message(handler_message.from_user.id, f'Пользователь с ID "{user_id}" удален.')
+        else:
+            bot.send_message(handler_message.from_user.id, 'Неверный формат пользовательского ID.')
+
+    message = bot.send_message(message.from_user.id, messages.USER_DELETE_MESSAGE)
+    bot.register_next_step_handler(message, delete_user)
 
 
-def _deleting_user(message):
-    """
-        User deleting process
-    """
-
-    user_id = message.text
-
-    if not user_id.isnumeric():
-        bot.send_message(
-            message.from_user.id,
-            'Неверный формат пользовательского ID.'
-        )
-    else:
-        db.delete_user(cursor, connect, user_id)
-        bot.send_message(
-            message.from_user.id,
-            f'Пользователь с ID "{user_id}" удален.'
-        )
-
+# Bot buttons actions
 
 @bot.message_handler(regexp=r'мой план\S*')
-def start_set_plan(message):
-    """
-        Start setting personal plan
-    """
-    bot.send_message(
-        message.from_user.id,
-        'На какой срок нужно выставить план?',
-        reply_markup=plan_makup
-    )
+def set_plan_message_handler(message):
+    """TODO"""
+
+    bot.send_message(message.from_user.id, 'На какой срок нужно выставить план?', reply_markup=plan_makup)
+
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('план'))
-def prepate_set_plan(call):
-    kwargs = db.get_employee_department_and_position(
-        cursor, call.from_user.id)
+def set_plan_callback(call):
+    """TODO"""
+
+    def set_plan(handler_message, **kwargs):
+        values = handler_message.text.split()
+
+        if len(values) < kwargs['valamount']:
+            bot.send_message(handler_message.from_user.id, 'Указаны не все показатели \u261d\U0001f3fb')
+        elif len(values) > kwargs['valamount']:
+            bot.send_message(handler_message.from_user.id, 'Указаны лишние показатели \u261d\U0001f3fb')
+        elif not all(value.isnumeric() for value in values):
+            bot.send_message(handler_message.from_user.id,
+                             'Ответ должен быть количетсвенным и состоять из чисел \u261d\U0001f3fb')
+        else:
+            # TODO: stop using json config (#6)
+            # TODO: refactor spreadsheet module (#12)
+            status = spredsheet.write_plan_to_google_sheet(
+                manager,
+                CONFIG['google']['tables']['план']['table'],
+                CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
+                handler_message.from_user.id,
+                kwargs['department'],
+                kwargs['position'],
+                kwargs['period'],
+                values,
+            )
+            if status:
+                table_url = 'https://docs.google.com/spreadsheets/d/{}/edit#gid={}/'.format(
+                    CONFIG['google']['tables']['план']['table'],
+                    CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
+                )
+                bot.send_message(
+                    handler_message.from_user.id,
+                    f'Цель установлена \u2705\n\nМожно отследить свои показатели в таблице:\n{table_url}\n\n',
+                )
+            else:
+                # TODO: logging (#10)
+                bot.send_message(handler_message.from_user.id, 'Кажется вас нет в таблице. Администратор оповещен.')
+
+    kwargs = db.get_employee_department_and_position(cursor, call.from_user.id)
     department = kwargs['department']
     position = kwargs['position']
+
     kwargs['period'] = call.data.split()[-1]
 
     try:
-        employee = CONFIG['подразделения'][department][position]['сотрудники'][str(call.from_user.id)]  # noqa
+        # TODO: stop using json config (#6)
+        employee = CONFIG['подразделения'][department][position]['сотрудники'][str(call.from_user.id)]
     except KeyError:
-        bot.send_message(
-            call.from_user.id,
-            'Кажется я вас не узнаю. Свяжитесь с администратором.'
-        )
+        # TODO: logging (#10)
+        bot.send_message(call.from_user.id, 'Кажется я вас не узнаю. Мы оповестили администратора.')
     else:
         if employee['планирование']:
             if employee['планирование'][kwargs['period']]:
-                bot.send_message(call.from_user.id, PLAN_MESSAGE)
-                kwargs['valamount'] = len(employee['планирование'][kwargs['period']]['текущая']['план'].keys())  # noqa
+                bot.send_message(call.from_user.id, messages.PLAN_MESSAGE)
+                kwargs['valamount'] = len(employee['планирование'][kwargs['period']]['текущая']['план'].keys())
                 message = bot.send_message(
                     call.from_user.id,
-                    '\n'.join(employee['планирование'][kwargs['period']]['текущая']['план'].keys())  # noqa
+                    '\n'.join(employee['планирование'][kwargs['period']]['текущая']['план'].keys()),
                 )
-                bot.register_next_step_handler(message, _set_plan, **kwargs)
+                bot.register_next_step_handler(message, set_plan, **kwargs)
             else:
-                bot.send_message(
-                    call.from_user.id,
-                    'Бот не отслеживает ваши планы на '
-                    'указанный срок \U0001f44c\U0001f3fb'
-                )
+                bot.send_message(call.from_user.id,'Ваши планы на указанный срок не отслеживаются \U0001f44c\U0001f3fb')
         else:
-            bot.send_message(
-                call.from_user.id,
-                'Ваши планы не отслеживаются ботом \U0001f44c\U0001f3fb'
-            )
-
-
-def _set_plan(message, **kwargs):
-    """
-        Setting personal plan
-    """
-
-    values = message.text.split()
-
-    if len(values) < kwargs['valamount']:
-        bot.send_message(
-            message.from_user.id,
-            'Указаны не все показатели \u261d\U0001f3fb'
-        )
-        return
-    elif len(values) > kwargs['valamount']:
-        bot.send_message(
-            message.from_user.id,
-            'Указаны лишние показатели \u261d\U0001f3fb'
-        )
-        return
-    else:
-        for i in values:
-            if not i.isnumeric():
-                bot.send_message(
-                    message.from_user.id,
-                    'Ответ должен быть количетсвенным '
-                    'и состоять из чисел \u261d\U0001f3fb'
-                )
-                return
-
-    status = spredsheet.write_plan_to_google_sheet(
-        manager,
-        CONFIG['google']['tables']['план']['table'],
-        CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
-        message.from_user.id,
-        kwargs['department'],
-        kwargs['position'],
-        kwargs['period'],
-        values
-    )
-    if status:
-        table_url = 'https://docs.google.com/spreadsheets/d/{}/edit#gid={}/'.format(
-            CONFIG['google']['tables']['план']['table'],
-            CONFIG['google']['tables']['план']['sheets'][kwargs['department']]
-        )
-        bot.send_message(
-            message.from_user.id,
-            'Цель установлена \u2705\n\n'
-            'Можешь отслеживать свои показатели в таблице:\n'
-            f'{table_url}\n\n'
-            'Продуктивной недели!'
-        )
-    else:
-        bot.send_message(
-            message.from_user.id,
-            'Кажется вас не добавили в таблицу.\n'
-            'Уведомите разработчиков.'
-        )
+            bot.send_message(call.from_user.id, 'Ваши планы не отслеживаются ботом \U0001f44c\U0001f3fb')
 
 
 @bot.message_handler(regexp=r'мои показатели\S*')
 @user_has_permission
-def start_kpi_check(message):
-    """
-        Get today's values from user
-    """
+def kpi_check_message_handler(message):
+    """TODO"""
 
-    kwargs = db.get_employee_department_and_position(
-        cursor, message.from_user.id)
+    kwargs = db.get_employee_department_and_position(cursor, message.from_user.id)
     department = kwargs['department']
     position = kwargs['position']
+
     try:
-        if MESSAGES_CONFIG[department][position]:
+        # messages refactoring (#11)
+        if messages.MESSAGES_CONFIG[department][position]:
             kwargs.update(response_len=MESSAGES_CONFIG[department][position]['values_amount'])  # noqa
-            message = bot.send_message(
-                message.from_user.id,
-                MESSAGES_CONFIG[department][position]['message']
-            )
-            bot.register_next_step_handler(message, _kpi_check, **kwargs)
+            message = bot.send_message(message.from_user.id, messages.MESSAGES_CONFIG[department][position]['message'])
+            bot.register_next_step_handler(message, kpi_check, **kwargs)
         else:
             bot.send_message(
                 message.from_user.id,
-                'На данный период ваш KPI '
-                'не отслеживается ботом \U0001f44c\U0001f3fb'
+                'На данный период ваш KPI не отслеживается ботом \U0001f44c\U0001f3fb',
             )
     except (ValueError, KeyError):
-        bot.send_message(
-            message.from_user.id,
-            'Что-то пошло не так. Свяжитесь с администратором.'
-        )
+        # TODO: logging (#10)
+        bot.send_message(message.from_user.id, 'Что-то пошло не так. Администратор оповещен.')
 
 
-def _kpi_check(message, **kwargs):
-    """
-        Values getting process
-    """
-
-    values = message.text.split()
+def kpi_check(handler_message, **kwargs):
+    values = handler_message.text.split()
 
     if len(values) < kwargs['response_len']:
-        bot.send_message(
-            message.from_user.id,
-            'Указаны не все показатели \u261d\U0001f3fb'
-        )
+        bot.send_message(handler_message.from_user.id, 'Указаны не все показатели \u261d\U0001f3fb')
     elif len(values) > kwargs['response_len']:
-        bot.send_message(
-            message.from_user.id,
-            'Указаны лишние показатели \u261d\U0001f3fb'
-        )
+        bot.send_message(handler_message.from_user.id, 'Указаны лишние показатели \u261d\U0001f3fb')
+    elif not all(value.isnumeric() for value in values):
+        bot.send_message(handler_message.from_user.id,
+                         'Ответ должен быть количетсвенным и состоять из чисел \u261d\U0001f3fb')
     else:
         for i in values:
             if not i.isnumeric():
                 bot.send_message(
-                    message.from_user.id,
+                    handler_message.from_user.id,
                     'Ответ должен быть количетсвенным '
                     'и состоять из чисел \u261d\U0001f3fb'
                 )
@@ -391,7 +310,7 @@ def _kpi_check(message, **kwargs):
             manager,
             CONFIG['google']['tables']['KPI']['table'],
             CONFIG['google']['tables']['KPI']['sheets'][department],
-            message.from_user.id,
+            handler_message.from_user.id,
             department,
             kwargs['position'],
             values
@@ -399,12 +318,12 @@ def _kpi_check(message, **kwargs):
 
         if status:
             bot.send_message(
-                message.from_user.id,
+                handler_message.from_user.id,
                 'Данные внесены \u2705\nХорошего вечера! \U0001f942'
             )
         else:
             bot.send_message(
-                message.from_user.id,
+                handler_message.from_user.id,
                 'Кажется вас не добавили в таблицу.\n'
                 'Уведомите разработчиков.'
             )
@@ -413,9 +332,7 @@ def _kpi_check(message, **kwargs):
 @bot.message_handler(regexp=r'день\S*')
 @user_has_permission
 def day_statistic_start_message(message):
-    """
-        Ask of which division statistic is needed
-    """
+    """TODO"""
 
     bot.send_message(
         message.chat.id,
@@ -426,9 +343,7 @@ def day_statistic_start_message(message):
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('день'))
 def day_statistic(call):
-    """
-        Send users values for today
-    """
+    """TODO"""
 
     bot.answer_callback_query(
         callback_query_id=call.id,
@@ -476,9 +391,7 @@ def day_statistic(call):
 @bot.message_handler(regexp=r'неделя\S*')
 @user_has_permission
 def week_statistic_start_message(message):
-    """
-        Ask of which division statistic is needed
-    """
+    """TODO"""
 
     bot.send_message(
         message.chat.id,
@@ -489,9 +402,8 @@ def week_statistic_start_message(message):
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('неделя'))
 def week_statistic(call):
-    """
-        Send users values for all week
-    """
+    """TODO"""
+
     bot.answer_callback_query(
         callback_query_id=call.id,
         text=(
@@ -519,9 +431,7 @@ def week_statistic(call):
 @user_has_permission
 @user_is_admin
 def start_day_income(message):
-    """
-        Get specific value from user (income)
-    """
+    """TODO"""
 
     bot.send_message(
         message.from_user.id,
@@ -532,9 +442,7 @@ def start_day_income(message):
 
 
 def _day_income(message):
-    """
-        Value getting process (income)
-    """
+    """TODO"""
 
     if message.text.isnumeric():
         status = spredsheet.write_income_to_google_sheet(
@@ -562,9 +470,7 @@ def _day_income(message):
 @user_has_permission
 @user_is_admin
 def start_week_lawsuits(message):
-    """
-        Get specific value from user (lawsuits)
-    """
+    """TODO"""
 
     bot.send_message(
         message.from_user.id,
@@ -575,9 +481,7 @@ def start_week_lawsuits(message):
 
 
 def _week_lawsuits(message):
-    """
-        Value getting process (lawsuits)
-    """
+    """TODO"""
 
     if message.text.isnumeric():
         status = spredsheet.write_lawsuits_to_google_sheet(
@@ -604,9 +508,7 @@ def _week_lawsuits(message):
 @bot.message_handler(regexp=r'красавчик\S*')
 @user_has_permission
 def show_the_leader_start_message(message):
-    """
-        Ask of which division statistic is needed
-    """
+    """TODO"""
 
     bot.send_message(
         message.chat.id,
@@ -617,9 +519,7 @@ def show_the_leader_start_message(message):
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('красавчик'))
 def show_the_leader(call):
-    """
-        Send the leader of the day
-    """
+    """TODO"""
 
     department = call.data.split()[-1]
 
@@ -646,9 +546,7 @@ def show_the_leader(call):
 @user_has_permission
 @user_is_admin
 def start_make_announcement(message):
-    """
-        Make an announcement for all added users
-    """
+    """TODO"""
 
     bot.send_message(
         message.from_user.id,
@@ -660,9 +558,7 @@ def start_make_announcement(message):
 
 
 def _make_announcement(message):
-    """
-        Get announcement
-    """
+    """TODO"""
 
     ids = db.return_users_ids(cursor)
     kwargs = {'text': message.text, 'ids': ids}
@@ -671,9 +567,7 @@ def _make_announcement(message):
 
 
 def _send_announcement(message, **kwargs):
-    """
-        Announcement sending confirmation
-    """
+    """TODO"""
 
     if message.text.lower() == 'да':
         for user_id in kwargs['ids']:
