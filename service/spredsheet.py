@@ -234,8 +234,6 @@ def check_employees_plan_for_fullness(manager, sheet_key,
 
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
-    diff = datetime.date.today() - START_DATE
-    row = str(diff.days + ROW_SHIFT)
 
     needed_employee = []
     for position, values in CONFIG['подразделения'][department].items():

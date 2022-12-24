@@ -23,7 +23,7 @@ manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
 connect, cursor = db.connect_database(env)
 
 
-# Keyboards
+# Markups
 
 menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
 menu_markup.add(
@@ -37,8 +37,8 @@ menu_markup.add(
     telebot.types.InlineKeyboardButton('объявление \U0001f4ef'),
 )
 
-stat_day_markup = telebot.types.InlineKeyboardMarkup()
-stat_day_markup.add(
+statistic_day_markup = telebot.types.InlineKeyboardMarkup()
+statistic_day_markup.add(
     telebot.types.InlineKeyboardButton('продажи', callback_data='день продажи'),
     telebot.types.InlineKeyboardButton('делопроизводство', callback_data='день делопроизводство'),
     telebot.types.InlineKeyboardButton('руководство', callback_data='день руководство'),
@@ -230,7 +230,7 @@ def set_plan_callback(call):
                 )
             else:
                 # TODO: logging (#10)
-                bot.send_message(handler_message.from_user.id, 'Кажется вас нет в таблице. Администратор оповещен.')
+                bot.send_message(handler_message.from_user.id, 'Вас нет в таблице. Администратор оповещен.')
 
     kwargs = db.get_employee_department_and_position(cursor, call.from_user.id)
     department = kwargs['department']
@@ -243,7 +243,7 @@ def set_plan_callback(call):
         employee = CONFIG['подразделения'][department][position]['сотрудники'][str(call.from_user.id)]
     except KeyError:
         # TODO: logging (#10)
-        bot.send_message(call.from_user.id, 'Кажется я вас не узнаю. Мы оповестили администратора.')
+        bot.send_message(call.from_user.id, 'Я вас не узнаю. Администратор оповещен.')
     else:
         if employee['планирование']:
             if employee['планирование'][kwargs['period']]:
@@ -255,7 +255,7 @@ def set_plan_callback(call):
                 )
                 bot.register_next_step_handler(message, set_plan, **kwargs)
             else:
-                bot.send_message(call.from_user.id,'Ваши планы на указанный срок не отслеживаются \U0001f44c\U0001f3fb')
+                bot.send_message(call.from_user.id, 'Ваши планы на указанный срок не отслеживаются \U0001f44c\U0001f3fb')
         else:
             bot.send_message(call.from_user.id, 'Ваши планы не отслеживаются ботом \U0001f44c\U0001f3fb')
 
@@ -265,12 +265,44 @@ def set_plan_callback(call):
 def kpi_check_message_handler(message):
     """TODO"""
 
+    def kpi_check(handler_message, **kwargs):
+        values = handler_message.text.split()
+
+        if len(values) < kwargs['response_len']:
+            bot.send_message(handler_message.from_user.id, 'Указаны не все показатели \u261d\U0001f3fb')
+        elif len(values) > kwargs['response_len']:
+            bot.send_message(handler_message.from_user.id, 'Указаны лишние показатели \u261d\U0001f3fb')
+        elif not all(value.isnumeric() for value in values):
+            bot.send_message(
+                handler_message.from_user.id,
+                'Ответ должен быть количетсвенным и состоять из чисел \u261d\U0001f3fb',
+            )
+        else:
+            department = kwargs['department']
+
+            # TODO: stop using json config (#6)
+            # TODO: refactor spreadsheet module (#12)
+            status = spredsheet.write_KPI_to_google_sheet(
+                manager,
+                CONFIG['google']['tables']['KPI']['table'],
+                CONFIG['google']['tables']['KPI']['sheets'][department],
+                handler_message.from_user.id,
+                department,
+                kwargs['position'],
+                values,
+            )
+
+            if status:
+                bot.send_message(message.from_user.id, 'Данные внесены \u2705\nХорошего вечера! \U0001f942')
+            else:
+                bot.send_message(handler_message.from_user.id, 'Вас не добавили в таблицу. Администратор оповещен.')
+
     kwargs = db.get_employee_department_and_position(cursor, message.from_user.id)
     department = kwargs['department']
     position = kwargs['position']
 
     try:
-        # messages refactoring (#11)
+        # TODO: messages refactoring (#11)
         if messages.MESSAGES_CONFIG[department][position]:
             kwargs.update(response_len=MESSAGES_CONFIG[department][position]['values_amount'])  # noqa
             message = bot.send_message(message.from_user.id, messages.MESSAGES_CONFIG[department][position]['message'])
@@ -285,185 +317,122 @@ def kpi_check_message_handler(message):
         bot.send_message(message.from_user.id, 'Что-то пошло не так. Администратор оповещен.')
 
 
-def kpi_check(handler_message, **kwargs):
-    values = handler_message.text.split()
-
-    if len(values) < kwargs['response_len']:
-        bot.send_message(handler_message.from_user.id, 'Указаны не все показатели \u261d\U0001f3fb')
-    elif len(values) > kwargs['response_len']:
-        bot.send_message(handler_message.from_user.id, 'Указаны лишние показатели \u261d\U0001f3fb')
-    elif not all(value.isnumeric() for value in values):
-        bot.send_message(handler_message.from_user.id,
-                         'Ответ должен быть количетсвенным и состоять из чисел \u261d\U0001f3fb')
-    else:
-        for i in values:
-            if not i.isnumeric():
-                bot.send_message(
-                    handler_message.from_user.id,
-                    'Ответ должен быть количетсвенным '
-                    'и состоять из чисел \u261d\U0001f3fb'
-                )
-                return
-        department = kwargs['department']
-
-        status = spredsheet.write_KPI_to_google_sheet(
-            manager,
-            CONFIG['google']['tables']['KPI']['table'],
-            CONFIG['google']['tables']['KPI']['sheets'][department],
-            handler_message.from_user.id,
-            department,
-            kwargs['position'],
-            values
-        )
-
-        if status:
-            bot.send_message(
-                handler_message.from_user.id,
-                'Данные внесены \u2705\nХорошего вечера! \U0001f942'
-            )
-        else:
-            bot.send_message(
-                handler_message.from_user.id,
-                'Кажется вас не добавили в таблицу.\n'
-                'Уведомите разработчиков.'
-            )
-
-
 @bot.message_handler(regexp=r'день\S*')
 @user_has_permission
-def day_statistic_start_message(message):
+def day_statistic_message_handler(message):
     """TODO"""
 
-    bot.send_message(
-        message.chat.id,
-        text='Выберите отдел',
-        reply_markup=stat_day_markup
-    )
+    bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=statistic_day_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('день'))
-def day_statistic(call):
+def day_statistic_callback(call):
     """TODO"""
 
     bot.answer_callback_query(
         callback_query_id=call.id,
-        text=(
-            'Минуту, собираю данные.\n'
-            'Обычно это занимает не больше 5 секунд \U0001f552'
-        )
+        text='Минуту, собираю данные.\nОбычно это занимает не больше 5 секунд \U0001f552',
     )
 
     department = call.data.split()[-1]
 
+    # TODO: stop using json config (#6)
+    # TODO: refactor spreadsheet module (#12)
     kpi_daily = spredsheet.get_daily_statistic(
         manager,
         CONFIG['google']['tables']['KPI']['table'],
         CONFIG['google']['tables']['KPI']['sheets'][department],
-        department
+        department,
     )
 
-    result = []
     bot.send_message(call.message.chat.id, 'Статистика за день \U0001f4c6')
-    result.extend([f'{k}: {v}' for k, v in kpi_daily.items()])
-    bot.send_message(call.message.chat.id, '\n'.join(result))
+    result_day = [f'{k}: {v}' for k, v in kpi_daily.items()]
+    bot.send_message(call.message.chat.id, '\n'.join(result_day))
 
-    result = []
-    bot.send_message(
-        call.message.chat.id, 'Статистика по сотрудникам \U0001F465')
+    bot.send_message(call.message.chat.id, 'Статистика по сотрудникам \U0001F465')
+
+    # TODO: stop using json config (#6)
+    # TODO: refactor spreadsheet module (#12)
     kpi_daily_detail = spredsheet.get_daily_detail_statistic(
         manager,
         CONFIG['google']['tables']['KPI']['table'],
         CONFIG['google']['tables']['KPI']['sheets'][department],
         department
     )
+    result_week = []
     for position, employees in kpi_daily_detail.items():
         employees_result = []
         if employees:
             for employee, values in employees.items():
                 employees_result.append(f'\n\U0001F464 {employee}:\n')
-                employees_result.append(
-                    '\n'.join([f'{k}: {v}' for k, v in values.items()]))
-            result.append(f'\n\n\U0001F53D {position.upper()}')
-            result.append('\n'.join(employees_result))
-    bot.send_message(call.message.chat.id, '\n'.join(result))
+                employees_result.append('\n'.join([f'{k}: {v}' for k, v in values.items()]))
+            result_week.append(f'\n\n\U0001F53D {position.upper()}')
+            result_week.append('\n'.join(employees_result))
+    bot.send_message(call.message.chat.id, '\n'.join(result_week))
 
 
 @bot.message_handler(regexp=r'неделя\S*')
 @user_has_permission
-def week_statistic_start_message(message):
+def week_statistic_message_handler(message):
     """TODO"""
 
-    bot.send_message(
-        message.chat.id,
-        text='Выберите отдел',
-        reply_markup=stat_week_markup
-    )
+    bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=stat_week_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('неделя'))
-def week_statistic(call):
+def week_statistic_callback(call):
     """TODO"""
 
     bot.answer_callback_query(
         callback_query_id=call.id,
-        text=(
-            'Собираю данные.\n'
-            'Обычно это занимает не больше 5 секунд \U0001f552'
-        )
+        text=('Собираю данные.\nОбычно это занимает не больше 5 секунд \U0001f552'),
     )
 
     department = call.data.split()[-1]
 
+    # TODO: stop using json config (#6)
+    # TODO: refactor spreadsheet module (#12)
     kpi_daily = spredsheet.get_weekly_statistic(
         manager,
         CONFIG['google']['tables']['KPI']['table'],
         CONFIG['google']['tables']['KPI']['sheets'][department],
-        department
+        department,
     )
 
-    result = []
     bot.send_message(call.message.chat.id, 'Статистика за неделю \U0001f5d3')
-    result.extend([f'{k}: {v}' for k, v in kpi_daily.items()])
+    result = [f'{k}: {v}' for k, v in kpi_daily.items()]
     bot.send_message(call.message.chat.id, '\n'.join(result))
 
 
 @bot.message_handler(regexp=r'выручка\S*')
 @user_has_permission
 @user_is_admin
-def start_day_income(message):
+def day_revenue_message_handler(message):
     """TODO"""
 
-    bot.send_message(
-        message.from_user.id,
-        f'Привет {message.from_user.first_name}!\n'
-        'Какая сумма выручки на сегодня?'
-    )
-    bot.register_next_step_handler(message, _day_income)
+    bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}!\nКакая сумма выручки на сегодня?')
+    bot.register_next_step_handler(message, day_revenue)
 
 
-def _day_income(message):
-    """TODO"""
-
-    if message.text.isnumeric():
+def day_revenue(handler_message):
+    if not handler_message.text.isnumeric():
+        bot.send_message(
+            handler_message.from_user.id,
+            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные в числовом формате \u261d\U0001f3fb',
+        )
+    else:
+        # TODO: stop using json config (#6)
+        # TODO: refactor spreadsheet module (#12)
         status = spredsheet.write_income_to_google_sheet(
             manager,
-        CONFIG['google']['tables']['KPI']['table'],
-        CONFIG['google']['tables']['KPI']['sheets']['руководство'],
-            message.text
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['KPI']['sheets']['руководство'],
+            handler_message.text,
         )
         if status:
-            bot.send_message(
-                message.from_user.id,
-                'Спасибо! Данные внесены \u2705'
-            )
+            bot.send_message(handler_message.from_user.id, 'Спасибо! Данные внесены \u2705')
         else:
-            bot.send_message(message.from_user.id, 'Что-то пошло не так.')
-    else:
-        bot.send_message(
-            message.from_user.id,
-            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные '
-            'в числовом формате \u261d\U0001f3fb'
-        )
+            bot.send_message(handler_message.from_user.id, 'Что-то пошло не так. Администратор оповещен.')
 
 
 @bot.message_handler(regexp=r'иски\S*')
@@ -486,8 +455,8 @@ def _week_lawsuits(message):
     if message.text.isnumeric():
         status = spredsheet.write_lawsuits_to_google_sheet(
             manager,
-        CONFIG['google']['tables']['KPI']['table'],
-        CONFIG['google']['tables']['KPI']['sheets']['делопроизводство'],
+            CONFIG['google']['tables']['KPI']['table'],
+            CONFIG['google']['tables']['KPI']['sheets']['делопроизводство'],
             message.text
         )
         if status:

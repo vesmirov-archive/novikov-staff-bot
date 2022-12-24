@@ -18,17 +18,7 @@ from dotenv import dotenv_values
 import pygsheets
 import telebot
 
-from messages import (
-    KPI_MESSAGE, 
-    KPI_SECOND_MESSAGE,
-    FAIL_MESSAGE,
-    LAWSUITS_MESSAGE,
-    INCOME_MESSAGE,
-    DAY_PLAN_MESSAGE,
-    DAY_PLAN_SECOND_MESSAGE,
-    WEEK_PLAN_MESSAGE,
-    WEEK_PLAN_SECOND_MESSAGE
-)
+import messages
 from service import db
 from service import spredsheet
 
@@ -45,12 +35,13 @@ TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
 
 CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
 
+
 def remind_to_send_kpi(bot, manager, second=False):
     """
         Notifications abount sending KPI values
     """
 
-    text = KPI_SECOND_MESSAGE if second else KPI_MESSAGE
+    text = messages.KPI_SECOND_MESSAGE if second else messages.KPI_MESSAGE
 
     departments_tracked = []
     for department, positions in CONFIG['отслеживание'].items():
@@ -70,12 +61,11 @@ def remind_to_send_kpi(bot, manager, second=False):
 
 
 def remind_to_send_plan(bot, manager, period, second=False):
-    
+
     if period == 'день':
-        text = DAY_PLAN_SECOND_MESSAGE if second else DAY_PLAN_MESSAGE
+        text = messages.DAY_PLAN_SECOND_MESSAGE if second else messages.DAY_PLAN_MESSAGE
     else:
-        text = WEEK_PLAN_SECOND_MESSAGE if second else WEEK_PLAN_MESSAGE
-        
+        text = messages.WEEK_PLAN_SECOND_MESSAGE if second else messages.WEEK_PLAN_MESSAGE
 
     departments_tracked = []
     for department, positions in CONFIG['отслеживание'].items():
@@ -267,7 +257,7 @@ def remind_to_send_lawsuits(bot):
 
     for user in users:
         user_id = user[0]
-        bot.send_message(user_id, LAWSUITS_MESSAGE)
+        bot.send_message(user_id, messages.LAWSUITS_MESSAGE)
 
 
 def remind_to_send_income(bot):
@@ -286,7 +276,7 @@ def remind_to_send_income(bot):
 
     for user in users:
         user_id = user[0]
-        bot.send_message(user_id, INCOME_MESSAGE)
+        bot.send_message(user_id, messages.INCOME_MESSAGE)
 
 
 def send_general_motivation(bot, manager, cursor):
@@ -397,7 +387,7 @@ def send_personal_motivation(bot, manager, cursor):
 ЛИСТОВ ПОДАНО 📤
     Мария Уварова:
         {data['листов подано']['Мария']['сегодня']} / {data['листов подано']['Мария']['неделя']} / {data['листов подано']['Мария']['месяц']} / {data['листов подано']['Мария']['год']}
-    """
+    """  # noqa
 
     for user_id in ids:
         bot.send_message(
