@@ -410,157 +410,129 @@ def week_statistic_callback(call):
 def day_revenue_message_handler(message):
     """TODO"""
 
+    def day_revenue(handler_message):
+        if not handler_message.text.isnumeric():
+            bot.send_message(
+                handler_message.from_user.id,
+                'Прости, я не понял. Попробуй снова и пришли пожалуйста данные в числовом формате \u261d\U0001f3fb',
+            )
+        else:
+            # TODO: stop using json config (#6)
+            # TODO: refactor spreadsheet module (#12)
+            status = spredsheet.write_income_to_google_sheet(
+                manager,
+                CONFIG['google']['tables']['KPI']['table'],
+                CONFIG['google']['tables']['KPI']['sheets']['руководство'],
+                handler_message.text,
+            )
+            if status:
+                bot.send_message(handler_message.from_user.id, 'Спасибо! Данные внесены \u2705')
+            else:
+                bot.send_message(handler_message.from_user.id, 'Что-то пошло не так. Администратор оповещен.')
+
     bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}!\nКакая сумма выручки на сегодня?')
     bot.register_next_step_handler(message, day_revenue)
-
-
-def day_revenue(handler_message):
-    if not handler_message.text.isnumeric():
-        bot.send_message(
-            handler_message.from_user.id,
-            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные в числовом формате \u261d\U0001f3fb',
-        )
-    else:
-        # TODO: stop using json config (#6)
-        # TODO: refactor spreadsheet module (#12)
-        status = spredsheet.write_income_to_google_sheet(
-            manager,
-            CONFIG['google']['tables']['KPI']['table'],
-            CONFIG['google']['tables']['KPI']['sheets']['руководство'],
-            handler_message.text,
-        )
-        if status:
-            bot.send_message(handler_message.from_user.id, 'Спасибо! Данные внесены \u2705')
-        else:
-            bot.send_message(handler_message.from_user.id, 'Что-то пошло не так. Администратор оповещен.')
 
 
 @bot.message_handler(regexp=r'иски\S*')
 @user_has_permission
 @user_is_admin
-def start_week_lawsuits(message):
+def week_lawsuits_message_handler(message):
     """TODO"""
 
     bot.send_message(
         message.from_user.id,
-        f'Привет {message.from_user.first_name}!\n'
-        'Сколько было подано исков на этой неделе?'
+        f'Привет {message.from_user.first_name}!\nСколько было подано исков на этой неделе?',
     )
-    bot.register_next_step_handler(message, _week_lawsuits)
+    bot.register_next_step_handler(message, week_lawsuits)
 
 
-def _week_lawsuits(message):
+def week_lawsuits(message):
     """TODO"""
 
-    if message.text.isnumeric():
+    if not message.text.isnumeric():
+        bot.send_message(
+            message.from_user.id,
+            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные в числовом формате \u261d\U0001f3fb',
+        )
+    else:
+        # TODO: stop using json config (#6)
+        # TODO: refactor spreadsheet module (#12)
         status = spredsheet.write_lawsuits_to_google_sheet(
             manager,
             CONFIG['google']['tables']['KPI']['table'],
             CONFIG['google']['tables']['KPI']['sheets']['делопроизводство'],
-            message.text
+            message.text,
         )
         if status:
-            bot.send_message(
-                message.from_user.id,
-                'Спасибо! Данные внесены \u2705'
-            )
+            bot.send_message(message.from_user.id, 'Спасибо! Данные внесены \u2705')
         else:
+            # TODO: logging (#10)
             bot.send_message(message.from_user.id, 'Что-то пошло не так.')
-    else:
-        bot.send_message(
-            message.from_user.id,
-            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные '
-            'в числовом формате \u261d\U0001f3fb'
-        )
 
 
 @bot.message_handler(regexp=r'красавчик\S*')
 @user_has_permission
-def show_the_leader_start_message(message):
+def show_leader_message_handler(message):
     """TODO"""
 
-    bot.send_message(
-        message.chat.id,
-        text='Выберите отдел',
-        reply_markup=leader_markup
-    )
+    bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=leader_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('красавчик'))
-def show_the_leader(call):
+def show_leader_callback(call):
     """TODO"""
 
     department = call.data.split()[-1]
 
+    # TODO: stop using json config (#6)
+    # TODO: refactor spreadsheet module (#12)
     leaders = spredsheet.get_leaders_from_google_sheet(
         manager,
         CONFIG['google']['tables']['KPI']['table'],
         CONFIG['google']['tables']['KPI']['sheets'][department],
-        department
+        department,
     )
 
     if leaders:
-        bot.send_message(
-            call.message.chat.id,
-            '\U0001f38a Красавчики дня: ' + ', '.join(leaders)
-        )
+        bot.send_message(call.message.chat.id, '\U0001f38a Красавчики дня: ' + ', '.join(leaders))
     else:
-        bot.send_message(
-            call.message.chat.id,
-            '\U0001f5ff Красавчиков дня нет'
-        )
+        bot.send_message(call.message.chat.id, '\U0001f5ff Красавчиков дня нет')
 
 
 @bot.message_handler(regexp=r'объявление\S*')
 @user_has_permission
 @user_is_admin
-def start_make_announcement(message):
+def make_announcement_message_handler(message):
     """TODO"""
+
+    def send_announcement(handler_message, **kwargs):
+        if handler_message.text.lower() == 'нет':
+            bot.send_message(handler_message.from_user.id, 'Принял. Отменяю \U0001f44c\U0001f3fb')
+        elif handler_message.text.lower() == 'да':
+            for user_id in kwargs['ids']:
+                bot.send_message(user_id, kwargs['text'])
+            bot.send_message(handler_message.from_user.id, 'Готово! Сотрудники уведомлены \u2705')
+        else:
+            bot.send_message(message.from_user.id, 'Я не понял ответа. Отменяю. \U0001f44c\U0001f3fb')
+
+    def prepare_announcement(handler_message):
+        ids = db.return_users_ids(cursor)
+        kwargs = {'text': handler_message.text, 'ids': ids}
+        bot.send_message(handler_message.from_user.id, 'Записал. Отправляем? (да/нет)')
+        bot.register_next_step_handler(handler_message, send_announcement, **kwargs)
 
     bot.send_message(
         message.from_user.id,
-        f'Привет {message.from_user.first_name}! '
-        'Пришли мне текст сообщения, а я отправлю '
-        'его всем сотрудникам \U0001f4dd'
-    )
-    bot.register_next_step_handler(message, _make_announcement)
-
-
-def _make_announcement(message):
-    """TODO"""
-
-    ids = db.return_users_ids(cursor)
-    kwargs = {'text': message.text, 'ids': ids}
-    bot.send_message(message.from_user.id, 'Записал. Отправляем? (да/нет)')
-    bot.register_next_step_handler(message, _send_announcement, **kwargs)
-
-
-def _send_announcement(message, **kwargs):
-    """TODO"""
-
-    if message.text.lower() == 'да':
-        for user_id in kwargs['ids']:
-            bot.send_message(user_id, kwargs['text'])
-        bot.send_message(
-            message.from_user.id,
-            'Готово! Сотрудники уведомлены \u2705'
-        )
-    elif message.text.lower() == 'нет':
-        bot.send_message(
-            message.from_user.id,
-            'Принял. Отменяю \U0001f44c\U0001f3fb'
-        )
-    else:
-        bot.send_message(
-            message.from_user.id,
-            'Не понял ответа. Отмена \U0001f44c\U0001f3fb'
-        )
+        f'Привет {message.from_user.first_name}! Пришли сообщение, которое нужно отправить сотрудникам \U0001f4dd')
+    bot.register_next_step_handler(message, prepare_announcement)
 
 
 if __name__ == '__main__':
+    # TODO: investigate logs and try to handle the errors
+    # TODO: logging (#10)
     while True:
         try:
             bot.polling()
         except Exception as e:
             time.sleep(5)
-            print(e)
