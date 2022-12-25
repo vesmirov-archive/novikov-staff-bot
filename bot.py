@@ -1,7 +1,8 @@
 import json
+import time
+
 import pygsheets
 import telebot
-import time
 from dotenv import dotenv_values
 
 import messages
@@ -25,8 +26,8 @@ connect, cursor = db.connect_database(env)
 
 # Markups
 
-menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
-menu_markup.add(
+main_menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
+main_menu_markup.add(
     telebot.types.InlineKeyboardButton('мои показатели \U0001f3af'),
     telebot.types.InlineKeyboardButton('мой план \U0001f4b5'),
     telebot.types.InlineKeyboardButton('день \U0001f4c6'),
@@ -44,8 +45,8 @@ statistic_day_markup.add(
     telebot.types.InlineKeyboardButton('руководство', callback_data='день руководство'),
 )
 
-stat_week_markup = telebot.types.InlineKeyboardMarkup()
-stat_week_markup.add(
+statistic_week_markup = telebot.types.InlineKeyboardMarkup()
+statistic_week_markup.add(
     telebot.types.InlineKeyboardButton('продажи', callback_data='неделя продажи'),
     telebot.types.InlineKeyboardButton('делопроизводство', callback_data='неделя делопроизводство'),
     telebot.types.InlineKeyboardButton('руководство', callback_data='неделя руководство'),
@@ -56,8 +57,8 @@ leader_markup.add(
     telebot.types.InlineKeyboardButton('делопроизводство', callback_data='красавчик делопроизводство'),
 )
 
-plan_makup = telebot.types.InlineKeyboardMarkup()
-plan_makup.add(
+plan_markup = telebot.types.InlineKeyboardMarkup()
+plan_markup.add(
     telebot.types.InlineKeyboardButton('на день', callback_data='план день'),
     telebot.types.InlineKeyboardButton('на неделю', callback_data='план неделя'),
 )
@@ -100,17 +101,23 @@ def user_is_admin(func):
 @bot.message_handler(commands=['start'])
 @user_has_permission
 def send_welcome(message):
-    """TODO"""
+    """
+    /start command handler:
+    sends a 'welcome message' and displays a main markup to user
+    """
 
     user_id = message.from_user.id
     name = message.from_user.first_name
-    bot.send_message(user_id, messages.START_MESSAGE.format(name), reply_markup=menu_markup)
+    bot.send_message(user_id, messages.START_MESSAGE.format(name), reply_markup=main_menu_markup)
 
 
 @bot.message_handler(commands=['help'])
 @user_has_permission
 def send_help_text(message):
-    """TODO"""
+    """
+    /help command handler:
+    sends a 'help message' to user
+    """
 
     bot.send_message(
         message.from_user.id,
@@ -125,7 +132,10 @@ def send_help_text(message):
 @bot.message_handler(commands=['users'])
 @user_has_permission
 def send_list_users(message):
-    """TODO"""
+    """
+    /users command handler:
+    sends a list of users, who was added in the DB via /adduser command
+    """
 
     users = db.list_users(cursor)
     bot.send_message(message.from_user.id, users)
@@ -135,7 +145,17 @@ def send_list_users(message):
 @user_has_permission
 @user_is_admin
 def add_user_command_handler(message):
-    """TODO"""
+    """
+    /adduser command handler (admin permission required):
+    adds a user to the DB.
+    Admin user must send a message with contains information about the new user.
+
+    The format is:
+        <telegram_id> <telegram_username> <firstname> <lastname> <department> <position> <is_admin>
+
+    Example:
+        111111111 demon_slayer_2000 Иван Иванов продажи лиды
+    """
 
     def add_user(handler_message):
         data = handler_message.text.split()
@@ -168,7 +188,17 @@ def add_user_command_handler(message):
 @user_has_permission
 @user_is_admin
 def delete_user_command_handler(message):
-    """TODO"""
+    """
+    /deluser command handler (admin permission required):
+    removes a user from the DB
+    Admin user must send a message with telegram ID of the user who supposed to be deleted from the bot
+
+    The format is:
+        <telegram_id>
+
+    Example:
+        111111111
+    """
 
     def delete_user(handler_message):
         user_id = handler_message.text
@@ -189,7 +219,7 @@ def delete_user_command_handler(message):
 def set_plan_message_handler(message):
     """TODO"""
 
-    bot.send_message(message.from_user.id, 'На какой срок нужно выставить план?', reply_markup=plan_makup)
+    bot.send_message(message.from_user.id, 'На какой срок нужно выставить план?', reply_markup=plan_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('план'))
@@ -376,7 +406,7 @@ def day_statistic_callback(call):
 def week_statistic_message_handler(message):
     """TODO"""
 
-    bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=stat_week_markup)
+    bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=statistic_week_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('неделя'))
@@ -534,5 +564,5 @@ if __name__ == '__main__':
     while True:
         try:
             bot.polling()
-        except Exception as e:
+        except Exception:
             time.sleep(5)
