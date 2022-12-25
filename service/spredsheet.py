@@ -26,7 +26,7 @@ def google_query_booster(page, values, row):
     return dict(zip(desc, query[0]))
 
 
-def write_KPI_to_google_sheet(manager, sheet_key, page_id,
+def write_kpi_to_google_sheet(manager, sheet_key, page_id,
                               user_id, department, position, values):
     """
         Update specific cells with given values (KPI)
@@ -41,7 +41,7 @@ def write_KPI_to_google_sheet(manager, sheet_key, page_id,
         user_id = str(user_id)
         cols = map(
             lambda x: x + row,
-            CONFIG['подразделения'][department][position]['сотрудники'][user_id]['KPI'].values()  # noqa
+            CONFIG['подразделения'][department][position]['сотрудники'][user_id]['KPI'].values()
         )
         cells = zip(cols, values)
     except KeyError:
@@ -62,7 +62,7 @@ def write_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
     page = sheet.worksheet('id', page_id)
 
     try:
-        cells = zip(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values(), values)  # noqa
+        cells = zip(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values(), values)
     except KeyError:
         return False
     for cell in cells:
@@ -79,8 +79,8 @@ def save_current_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
     sheet = manager.open_by_key(sheet_key)
     page = sheet.worksheet('id', page_id)
 
-    plan = list(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values())  # noqa
-    fact = list(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['факт'].values())  # noqa
+    plan = list(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values()) # noqa
+    fact = list(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['факт'].values()) # noqa
     query = page.get_values(plan[0], fact[-1])
 
     for row in query:
@@ -89,7 +89,7 @@ def save_current_plan_to_google_sheet(manager, sheet_key, page_id, user_id,
                 row[idx] = '0'
 
     cells = zip(
-        CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['предыдущая']['план'].values(),  # noqa
+        CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['предыдущая']['план'].values(), # noqa
         query
     )
     for cell in cells:
@@ -172,7 +172,7 @@ def get_daily_detail_statistic(manager, sheet_key, page_id, department):
     row = str(diff.days + ROW_SHIFT)
 
     employees = {}
-    for position, values in CONFIG['подразделения'][department].items():  # noqa
+    for position, values in CONFIG['подразделения'][department].items():
         employees[position] = {}
         for employee in values['сотрудники'].values():
             if employee['KPI']:

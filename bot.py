@@ -96,7 +96,7 @@ def user_is_admin(func):
     return inner
 
 
-# Bot commands actions
+# Commands actions
 
 @bot.message_handler(commands=['start'])
 @user_has_permission
@@ -147,7 +147,7 @@ def send_list_users(message):
 def add_user_command_handler(message):
     """
     /adduser command handler (admin permission required):
-    adds a user to the DB.
+    Adds user to the DB.
     Admin user must send a message with contains information about the new user.
 
     The format is:
@@ -190,7 +190,7 @@ def add_user_command_handler(message):
 def delete_user_command_handler(message):
     """
     /deluser command handler (admin permission required):
-    removes a user from the DB
+    removes some user from the DB by its ID.
     Admin user must send a message with telegram ID of the user who supposed to be deleted from the bot
 
     The format is:
@@ -213,18 +213,26 @@ def delete_user_command_handler(message):
     bot.register_next_step_handler(message, delete_user)
 
 
-# Bot buttons actions
+# Buttons actions
 
+# Not used, probably can be removed
 @bot.message_handler(regexp=r'мой план\S*')
 def set_plan_message_handler(message):
-    """TODO"""
+    """
+    Plan handler:
+    allows user to set a day/week plan.
+    Shows a markup with the specified choices, which triggers set_plan callback.
+    """
 
     bot.send_message(message.from_user.id, 'На какой срок нужно выставить план?', reply_markup=plan_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('план'))
 def set_plan_callback(call):
-    """TODO"""
+    """
+    Plan handler's callback:
+    ask user to provide his day/week plan values and writes them into the plan google sheet.
+    """
 
     def set_plan(handler_message, **kwargs):
         values = handler_message.text.split()
@@ -240,14 +248,14 @@ def set_plan_callback(call):
             # TODO: stop using json config (#6)
             # TODO: refactor spreadsheet module (#12)
             status = spredsheet.write_plan_to_google_sheet(
-                manager,
-                CONFIG['google']['tables']['план']['table'],
-                CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
-                handler_message.from_user.id,
-                kwargs['department'],
-                kwargs['position'],
-                kwargs['period'],
-                values,
+                manager=manager,
+                sheet_key=CONFIG['google']['tables']['план']['table'],
+                page_id=CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
+                user_id=handler_message.from_user.id,
+                department=kwargs['department'],
+                position=kwargs['position'],
+                period=kwargs['period'],
+                values=values,
             )
             if status:
                 table_url = 'https://docs.google.com/spreadsheets/d/{}/edit#gid={}/'.format(
@@ -293,7 +301,11 @@ def set_plan_callback(call):
 @bot.message_handler(regexp=r'мои показатели\S*')
 @user_has_permission
 def kpi_check_message_handler(message):
-    """TODO"""
+    """
+    KPI handler:
+    allows user to send his day results (KPI values).
+    The provided values are written on the KPI google sheet.
+    """
 
     def kpi_check(handler_message, **kwargs):
         values = handler_message.text.split()
@@ -308,34 +320,32 @@ def kpi_check_message_handler(message):
                 'Ответ должен быть количетсвенным и состоять из чисел \u261d\U0001f3fb',
             )
         else:
-            department = kwargs['department']
-
             # TODO: stop using json config (#6)
             # TODO: refactor spreadsheet module (#12)
-            status = spredsheet.write_KPI_to_google_sheet(
-                manager,
-                CONFIG['google']['tables']['KPI']['table'],
-                CONFIG['google']['tables']['KPI']['sheets'][department],
-                handler_message.from_user.id,
-                department,
-                kwargs['position'],
-                values,
+            status = spredsheet.write_kpi_to_google_sheet(
+                manager=manager,
+                sheet_key=CONFIG['google']['tables']['KPI']['table'],
+                page_id=CONFIG['google']['tables']['KPI']['sheets'][kwargs['department']],
+                user_id=handler_message.from_user.id,
+                department=kwargs['department'],
+                position=kwargs['position'],
+                values=values,
             )
-
             if status:
                 bot.send_message(message.from_user.id, 'Данные внесены \u2705\nХорошего вечера! \U0001f942')
             else:
                 bot.send_message(handler_message.from_user.id, 'Вас не добавили в таблицу. Администратор оповещен.')
 
     kwargs = db.get_employee_department_and_position(cursor, message.from_user.id)
-    department = kwargs['department']
-    position = kwargs['position']
-
     try:
         # TODO: messages refactoring (#11)
-        if messages.MESSAGES_CONFIG[department][position]:
-            kwargs.update(response_len=MESSAGES_CONFIG[department][position]['values_amount'])  # noqa
-            message = bot.send_message(message.from_user.id, messages.MESSAGES_CONFIG[department][position]['message'])
+        if messages.MESSAGES_CONFIG[kwargs['department']][kwargs['position']]:
+            kwargs.update(
+                response_len=messages.MESSAGES_CONFIG[kwargs['department']][kwargs['position']]['values_amount'],
+            )
+            message = bot.send_message(
+                message.from_user.id, messages.MESSAGES_CONFIG[kwargs['department']][kwargs['position']]['message'],
+            )
             bot.register_next_step_handler(message, kpi_check, **kwargs)
         else:
             bot.send_message(
@@ -350,14 +360,21 @@ def kpi_check_message_handler(message):
 @bot.message_handler(regexp=r'день\S*')
 @user_has_permission
 def day_statistic_message_handler(message):
-    """TODO"""
+    """
+    Day statistic handler:
+    allows user to get statistics (KPI, leader, and other values) of the chosen department for today.
+    Shows a markup with the departments list, which triggers day_statistic callback.
+    """
 
     bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=statistic_day_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('день'))
 def day_statistic_callback(call):
-    """TODO"""
+    """
+    Day statistic handler's callback:
+    sends user day statistics of the specified department.
+    """
 
     bot.answer_callback_query(
         callback_query_id=call.id,
@@ -369,10 +386,10 @@ def day_statistic_callback(call):
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     kpi_daily = spredsheet.get_daily_statistic(
-        manager,
-        CONFIG['google']['tables']['KPI']['table'],
-        CONFIG['google']['tables']['KPI']['sheets'][department],
-        department,
+        manager=manager,
+        sheet_key=CONFIG['google']['tables']['KPI']['table'],
+        page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
+        department=department,
     )
 
     bot.send_message(call.message.chat.id, 'Статистика за день \U0001f4c6')
@@ -384,10 +401,10 @@ def day_statistic_callback(call):
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     kpi_daily_detail = spredsheet.get_daily_detail_statistic(
-        manager,
-        CONFIG['google']['tables']['KPI']['table'],
-        CONFIG['google']['tables']['KPI']['sheets'][department],
-        department
+        manager=manager,
+        sheet_key=CONFIG['google']['tables']['KPI']['table'],
+        page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
+        department=department
     )
     result_week = []
     for position, employees in kpi_daily_detail.items():
@@ -404,14 +421,21 @@ def day_statistic_callback(call):
 @bot.message_handler(regexp=r'неделя\S*')
 @user_has_permission
 def week_statistic_message_handler(message):
-    """TODO"""
+    """
+    Week statistic handler:
+    allows user to get statistics (KPI, leader, and other values) of the chosen department for the current week.
+    Shows a markup with the departments list, which triggers week_statistic callback.
+    """
 
     bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=statistic_week_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('неделя'))
 def week_statistic_callback(call):
-    """TODO"""
+    """
+    Week statistic handler's callback:
+    sends user week statistics of the specified department.
+    """
 
     bot.answer_callback_query(
         callback_query_id=call.id,
@@ -423,12 +447,11 @@ def week_statistic_callback(call):
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     kpi_daily = spredsheet.get_weekly_statistic(
-        manager,
-        CONFIG['google']['tables']['KPI']['table'],
-        CONFIG['google']['tables']['KPI']['sheets'][department],
-        department,
+        manager=manager,
+        sheet_key=CONFIG['google']['tables']['KPI']['table'],
+        page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
+        department=department,
     )
-
     bot.send_message(call.message.chat.id, 'Статистика за неделю \U0001f5d3')
     result = [f'{k}: {v}' for k, v in kpi_daily.items()]
     bot.send_message(call.message.chat.id, '\n'.join(result))
@@ -438,9 +461,13 @@ def week_statistic_callback(call):
 @user_has_permission
 @user_is_admin
 def day_revenue_message_handler(message):
-    """TODO"""
+    """
+    Day revenue handler (admin permission required):
+    allows user to send a revenue for today.
+    The provided values are written on the KPI google sheet.
+    """
 
-    def day_revenue(handler_message):
+    def get_day_revenue(handler_message):
         if not handler_message.text.isnumeric():
             bot.send_message(
                 handler_message.from_user.id,
@@ -450,10 +477,10 @@ def day_revenue_message_handler(message):
             # TODO: stop using json config (#6)
             # TODO: refactor spreadsheet module (#12)
             status = spredsheet.write_income_to_google_sheet(
-                manager,
-                CONFIG['google']['tables']['KPI']['table'],
-                CONFIG['google']['tables']['KPI']['sheets']['руководство'],
-                handler_message.text,
+                manager=manager,
+                sheet_key=CONFIG['google']['tables']['KPI']['table'],
+                page_id=CONFIG['google']['tables']['KPI']['sheets']['руководство'],
+                value=handler_message.text,
             )
             if status:
                 bot.send_message(handler_message.from_user.id, 'Спасибо! Данные внесены \u2705')
@@ -461,69 +488,76 @@ def day_revenue_message_handler(message):
                 bot.send_message(handler_message.from_user.id, 'Что-то пошло не так. Администратор оповещен.')
 
     bot.send_message(message.from_user.id, f'Привет {message.from_user.first_name}!\nКакая сумма выручки на сегодня?')
-    bot.register_next_step_handler(message, day_revenue)
+    bot.register_next_step_handler(message, get_day_revenue)
 
 
 @bot.message_handler(regexp=r'иски\S*')
 @user_has_permission
 @user_is_admin
 def week_lawsuits_message_handler(message):
-    """TODO"""
+    """
+    Week lawsuits handler (admin permission required):
+    allows user to send a number of written lawsuits for today.
+    The provided values are written on the KPI google sheet.
+    """
+
+    def send_week_lawsuits(handler_message):
+        if not handler_message.text.isnumeric():
+            bot.send_message(
+                handler_message.from_user.id,
+                'Прости, я не понял. Попробуй снова и пришли пожалуйста данные в числовом формате \u261d\U0001f3fb',
+            )
+        else:
+            # TODO: stop using json config (#6)
+            # TODO: refactor spreadsheet module (#12)
+            status = spredsheet.write_lawsuits_to_google_sheet(
+                manager=manager,
+                sheet_key=CONFIG['google']['tables']['KPI']['table'],
+                page_id=CONFIG['google']['tables']['KPI']['sheets']['делопроизводство'],
+                value=handler_message.text,
+            )
+            if status:
+                bot.send_message(handler_message.from_user.id, 'Спасибо! Данные внесены \u2705')
+            else:
+                # TODO: logging (#10)
+                bot.send_message(handler_message.from_user.id, 'Что-то пошло не так.')
 
     bot.send_message(
         message.from_user.id,
         f'Привет {message.from_user.first_name}!\nСколько было подано исков на этой неделе?',
     )
-    bot.register_next_step_handler(message, week_lawsuits)
-
-
-def week_lawsuits(message):
-    """TODO"""
-
-    if not message.text.isnumeric():
-        bot.send_message(
-            message.from_user.id,
-            'Прости, я не понял. Попробуй снова и пришли пожалуйста данные в числовом формате \u261d\U0001f3fb',
-        )
-    else:
-        # TODO: stop using json config (#6)
-        # TODO: refactor spreadsheet module (#12)
-        status = spredsheet.write_lawsuits_to_google_sheet(
-            manager,
-            CONFIG['google']['tables']['KPI']['table'],
-            CONFIG['google']['tables']['KPI']['sheets']['делопроизводство'],
-            message.text,
-        )
-        if status:
-            bot.send_message(message.from_user.id, 'Спасибо! Данные внесены \u2705')
-        else:
-            # TODO: logging (#10)
-            bot.send_message(message.from_user.id, 'Что-то пошло не так.')
+    bot.register_next_step_handler(message, send_week_lawsuits)
 
 
 @bot.message_handler(regexp=r'красавчик\S*')
 @user_has_permission
-def show_leader_message_handler(message):
-    """TODO"""
+def day_leader_message_handler(message):
+    """
+    Day leader handler:
+    allows to see the leader (an employee with the best KPI values) of the chosen department for the current day.
+    Shows a markup with the departments list, which triggers day_leader callback.
+    """
 
     bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=leader_markup)
 
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith('красавчик'))
-def show_leader_callback(call):
-    """TODO"""
+def day_leader_callback(call):
+    """
+    Day leader handler's callback:
+    tell who is the leader of the specified department.
+    If there is no leader for today, just sends a corresponding message.
+    """
 
     department = call.data.split()[-1]
-
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     leaders = spredsheet.get_leaders_from_google_sheet(
-        manager,
-        CONFIG['google']['tables']['KPI']['table'],
-        CONFIG['google']['tables']['KPI']['sheets'][department],
-        department,
+        manager=manager,
+        sheet_key=CONFIG['google']['tables']['KPI']['table'],
+        page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
+        department=department,
     )
-
     if leaders:
         bot.send_message(call.message.chat.id, '\U0001f38a Красавчики дня: ' + ', '.join(leaders))
     else:
@@ -534,12 +568,16 @@ def show_leader_callback(call):
 @user_has_permission
 @user_is_admin
 def make_announcement_message_handler(message):
-    """TODO"""
+    """
+    Announcement handler (admin permission required):
+    sends an announcement (a message) to all users.
+    """
 
     def send_announcement(handler_message, **kwargs):
         if handler_message.text.lower() == 'нет':
             bot.send_message(handler_message.from_user.id, 'Принял. Отменяю \U0001f44c\U0001f3fb')
         elif handler_message.text.lower() == 'да':
+            # TODO: there is a bug - if some user from the DB has 'stopped' the bot, this function will return an error.
             for user_id in kwargs['ids']:
                 bot.send_message(user_id, kwargs['text'])
             bot.send_message(handler_message.from_user.id, 'Готово! Сотрудники уведомлены \u2705')
@@ -559,7 +597,7 @@ def make_announcement_message_handler(message):
 
 
 if __name__ == '__main__':
-    # TODO: investigate logs and try to handle the errors
+    # TODO: investigate logs and try to catch the errors
     # TODO: logging (#10)
     while True:
         try:
