@@ -10,7 +10,6 @@ import json
 
 from dotenv import dotenv_values
 import pygsheets
-import telebot
 
 from service import spredsheet
 
@@ -56,11 +55,8 @@ def save_plan_values(manager, department, period):
 
 
 def main():
-    """
-        Notification manager
-    """
+    """Notification manager"""
 
-    bot = telebot.TeleBot(TOKEN)
     manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
 
     if args.config == 'day-sales':
