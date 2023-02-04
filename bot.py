@@ -6,8 +6,8 @@ import telebot
 from dotenv import dotenv_values
 
 import messages
-from service import db
-from service import spredsheet
+from services import db
+from services import spredsheet
 
 env = dotenv_values('.env')
 

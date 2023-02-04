@@ -5,7 +5,7 @@
 import psycopg2
 from dotenv import dotenv_values
 
-from service.db import connect_database
+from services.db import connect_database
 
 
 def main():

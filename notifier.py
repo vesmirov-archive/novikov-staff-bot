@@ -19,8 +19,8 @@ import pygsheets
 import telebot
 
 import messages
-from service import db
-from service import spredsheet
+from services import db
+from services import spredsheet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--config', dest='config')
