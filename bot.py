@@ -1,27 +1,15 @@
-import json
 import time
 
-import pygsheets
 import telebot
-from dotenv import dotenv_values
 
 import messages
 from services import db
-from services import spredsheet
+from google import spredsheet
+from settings import settings
+from handlers.kpi_handlers import prepare_kpi_keys_and_questions, send_kpi_to_google
+from handlers.user_handlers import user_is_registered, user_has_admin_permission
 
-env = dotenv_values('.env')
-
-TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
-CHAT = env.get('TELEGRAM_CHAT_ID')
-CLIENT_SECRET_FILE = env.get('CLIENT_SECRET_FILE')
-
-# TODO: stop using json config (#6)
-with open('config.json', 'r') as file:
-    CONFIG = json.loads(file.read())
-
-bot = telebot.TeleBot(TOKEN)
-manager = pygsheets.authorize(service_account_file=CLIENT_SECRET_FILE)
-connect, cursor = db.connect_database(env)
+bot = telebot.TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
 
 
 # Markups
@@ -69,12 +57,12 @@ plan_markup.add(
 def user_has_permission(func):
     """
     Permission decorator.
-    Checks if the telegram user is in DB and has access to the bot.
+    Checks if the telegram user is registered and has access to the bot.
     Otherwise, sends an error message.
     """
 
     def inner(message):
-        if db.user_exists(cursor, message.from_user.id):
+        if user_is_registered(message.from_user.id):
             func(message)
         else:
             bot.send_message(message.from_user.id, messages.DENY_ANONIMUS_MESSAGE)
@@ -84,12 +72,12 @@ def user_has_permission(func):
 def user_is_admin(func):
     """
     Permission decorator.
-    Checks if the telegram user is admin (DB: "is_admin" field).
+    Checks if the telegram user is admin.
     Otherwise, sends an error message.
     """
 
     def inner(message):
-        if db.user_is_admin(cursor, message.from_user.id):
+        if user_has_admin_permission(message.from_user.id):
             func(message)
         else:
             bot.send_message(message.from_user.id, messages.DENY_MESSAGE)
@@ -110,108 +98,16 @@ def send_welcome(message):
     name = message.from_user.first_name
     bot.send_message(user_id, messages.START_MESSAGE.format(name), reply_markup=main_menu_markup)
 
-
-@bot.message_handler(commands=['help'])
-@user_has_permission
-def send_help_text(message):
-    """
-    /help command handler:
-    sends a 'help message' to user
-    """
-
-    bot.send_message(
-        message.from_user.id,
-        messages.HELP_MESSAGE.format(
-            # TODO: stop using json config (#6)
-            CONFIG['google']['tables']['KPI']['table'],
-            CONFIG['google']['tables']['план']['table'],
-        ),
-    )
-
-
 @bot.message_handler(commands=['users'])
 @user_has_permission
 def send_list_users(message):
     """
     /users command handler:
-    sends a list of users, who was added in the DB via /adduser command
+    sends a list of registered users.
     """
 
-    users = db.list_users(cursor)
-    bot.send_message(message.from_user.id, users)
-
-
-@bot.message_handler(commands=['adduser'])
-@user_has_permission
-@user_is_admin
-def add_user_command_handler(message):
-    """
-    /adduser command handler (admin permission required):
-    Adds user to the DB.
-    Admin user must send a message with contains information about the new user.
-
-    The format is:
-        <telegram_id> <telegram_username> <firstname> <lastname> <department> <position> <is_admin>
-
-    Example:
-        111111111 demon_slayer_2000 Иван Иванов продажи лиды
-    """
-
-    def add_user(handler_message):
-        data = handler_message.text.split()
-
-        if len(data) != 7:
-            bot.send_message(handler_message.from_user.id, 'Неверный формат.')
-        elif data[4] not in messages.MESSAGES_CONFIG.keys():
-            bot.send_message(handler_message.from_user.id, 'Указанный отдел не представлен в списке.')
-        elif data[5] not in messages.MESSAGES_CONFIG[data[4]].keys():
-            bot.send_message(handler_message.from_user.id, 'Указанный функционал отсутствует в списке.')
-        else:
-            try:
-                user_id, username, firstname, lastname, department, position = data[0:6]
-                is_admin = True if data[6] == 'да' else False
-                args = cursor, connect, int(user_id), username, firstname, lastname, department, position, is_admin
-            except (ValueError, KeyError):
-                bot.send_message(handler_message.from_user.id, 'Неверный формат.')
-            else:
-                user_added = db.add_user(*args)
-                if user_added:
-                    bot.send_message(handler_message.from_user.id, 'Пользователь добавлен.')
-                else:
-                    bot.send_message(handler_message.from_user.id, f'Пользователь уже добавлен в базу (ID: {user_id}).')
-
-    message = bot.send_message(message.from_user.id, messages.USER_ADD_MESSAGE)
-    bot.register_next_step_handler(message, add_user)
-
-
-@bot.message_handler(commands=['deluser'])
-@user_has_permission
-@user_is_admin
-def delete_user_command_handler(message):
-    """
-    /deluser command handler (admin permission required):
-    removes some user from the DB by its ID.
-    Admin user must send a message with telegram ID of the user who supposed to be deleted from the bot
-
-    The format is:
-        <telegram_id>
-
-    Example:
-        111111111
-    """
-
-    def delete_user(handler_message):
-        user_id = handler_message.text
-
-        if user_id.isnumeric():
-            db.delete_user(cursor, connect, user_id)
-            bot.send_message(handler_message.from_user.id, f'Пользователь с ID "{user_id}" удален.')
-        else:
-            bot.send_message(handler_message.from_user.id, 'Неверный формат пользовательского ID.')
-
-    message = bot.send_message(message.from_user.id, messages.USER_DELETE_MESSAGE)
-    bot.register_next_step_handler(message, delete_user)
-
+    text = f'Список пользователей:\n' + '\n'.join(f'{}{}')
+    bot.send_message(message.from_user.id, text)
 
 # Buttons actions
 
@@ -248,7 +144,6 @@ def set_plan_callback(call):
             # TODO: stop using json config (#6)
             # TODO: refactor spreadsheet module (#12)
             status = spredsheet.write_plan_to_google_sheet(
-                manager=manager,
                 sheet_key=CONFIG['google']['tables']['план']['table'],
                 page_id=CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
                 user_id=handler_message.from_user.id,
@@ -300,61 +195,51 @@ def set_plan_callback(call):
 
 @bot.message_handler(regexp=r'мои показатели\S*')
 @user_has_permission
-def kpi_check_message_handler(message):
+def kpi_send_message(message):
     """
     KPI handler:
     allows user to send his day results (KPI values).
     The provided values are written on the KPI google sheet.
     """
 
-    def kpi_check(handler_message, **kwargs):
-        values = handler_message.text.split()
-
-        if len(values) < kwargs['response_len']:
-            bot.send_message(handler_message.from_user.id, 'Указаны не все показатели \u261d\U0001f3fb')
-        elif len(values) > kwargs['response_len']:
-            bot.send_message(handler_message.from_user.id, 'Указаны лишние показатели \u261d\U0001f3fb')
-        elif not all(value.isnumeric() for value in values):
+    def parse_answer(answer, kpi_keys) -> None:
+        if not answer.text.isnumeric():
             bot.send_message(
-                handler_message.from_user.id,
-                'Ответ должен быть количетсвенным и состоять из чисел \u261d\U0001f3fb',
+                answer.from_user.id,
+                'Неверный формат показателей. Попробуйте еще раз.',
             )
-        else:
-            # TODO: stop using json config (#6)
-            # TODO: refactor spreadsheet module (#12)
-            status = spredsheet.write_kpi_to_google_sheet(
-                manager=manager,
-                sheet_key=CONFIG['google']['tables']['KPI']['table'],
-                page_id=CONFIG['google']['tables']['KPI']['sheets'][kwargs['department']],
-                user_id=handler_message.from_user.id,
-                department=kwargs['department'],
-                position=kwargs['position'],
-                values=values,
-            )
-            if status:
-                bot.send_message(message.from_user.id, 'Данные внесены \u2705\nХорошего вечера! \U0001f942')
-            else:
-                bot.send_message(handler_message.from_user.id, 'Вас не добавили в таблицу. Администратор оповещен.')
+            return
 
-    kwargs = db.get_employee_department_and_position(cursor, message.from_user.id)
-    try:
-        # TODO: messages refactoring (#11)
-        if messages.MESSAGES_CONFIG[kwargs['department']][kwargs['position']]:
-            kwargs.update(
-                response_len=messages.MESSAGES_CONFIG[kwargs['department']][kwargs['position']]['values_amount'],
-            )
-            message = bot.send_message(
-                message.from_user.id, messages.MESSAGES_CONFIG[kwargs['department']][kwargs['position']]['message'],
-            )
-            bot.register_next_step_handler(message, kpi_check, **kwargs)
-        else:
+        kpi_values = message.text.split()
+
+        if len(kpi_values) != len(kpi_keys):
             bot.send_message(
-                message.from_user.id,
-                'На данный период ваш KPI не отслеживается ботом \U0001f44c\U0001f3fb',
+                answer.from_user.id,
+                'Количество показателей не соответствует числу вопросов. Попробуйте еще раз.',
             )
-    except (ValueError, KeyError):
-        # TODO: logging (#10)
-        bot.send_message(message.from_user.id, 'Что-то пошло не так. Администратор оповещен.')
+            return
+
+        succeed = send_kpi_to_google(answer.from_user.id, kpi_values)
+        if succeed:
+            text = 'Ваши данные внесены. Хорошего вечера!'
+        else:
+            text = 'Во время отправки данных что-то пошло не так. Ваши данные сохранены. Разработчики уведомлены.'
+
+        bot.send_message(answer.from_user.id, text)
+        return
+
+
+    kpi_keys, kpi_questions = prepare_kpi_keys_and_questions(message.from_user.id)
+    if len(kpi_keys) == 0:
+        bot.send_message(message.from_user.id, 'Сегодня у вас не нет запланированных отчетов. Спасибо!')
+        return
+
+    questions_str = '\n'.join([f'{order}. {question}' for order, question in enumerate(kpi_questions)])
+    text = 'Пришлите следующие количественные данные одним сообщением, согласно приведенному порядку. ' \
+           f'Разделяйте числа пробелами:\n\n{questions_str}',
+    bot.send_message(message.from_user.id, text)
+
+    bot.register_next_step_handler(message, parse_answer, kpi_keys)
 
 
 @bot.message_handler(regexp=r'день\S*')
@@ -386,7 +271,6 @@ def day_statistic_callback(call):
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     kpi_daily = spredsheet.get_daily_statistic(
-        manager=manager,
         sheet_key=CONFIG['google']['tables']['KPI']['table'],
         page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
         department=department,
@@ -401,7 +285,6 @@ def day_statistic_callback(call):
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     kpi_daily_detail = spredsheet.get_daily_detail_statistic(
-        manager=manager,
         sheet_key=CONFIG['google']['tables']['KPI']['table'],
         page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
         department=department
@@ -447,7 +330,6 @@ def week_statistic_callback(call):
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     kpi_daily = spredsheet.get_weekly_statistic(
-        manager=manager,
         sheet_key=CONFIG['google']['tables']['KPI']['table'],
         page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
         department=department,
@@ -477,7 +359,6 @@ def day_revenue_message_handler(message):
             # TODO: stop using json config (#6)
             # TODO: refactor spreadsheet module (#12)
             status = spredsheet.write_income_to_google_sheet(
-                manager=manager,
                 sheet_key=CONFIG['google']['tables']['KPI']['table'],
                 page_id=CONFIG['google']['tables']['KPI']['sheets']['руководство'],
                 value=handler_message.text,
@@ -511,7 +392,6 @@ def week_lawsuits_message_handler(message):
             # TODO: stop using json config (#6)
             # TODO: refactor spreadsheet module (#12)
             status = spredsheet.write_lawsuits_to_google_sheet(
-                manager=manager,
                 sheet_key=CONFIG['google']['tables']['KPI']['table'],
                 page_id=CONFIG['google']['tables']['KPI']['sheets']['делопроизводство'],
                 value=handler_message.text,
@@ -553,7 +433,6 @@ def day_leader_callback(call):
     # TODO: stop using json config (#6)
     # TODO: refactor spreadsheet module (#12)
     leaders = spredsheet.get_leaders_from_google_sheet(
-        manager=manager,
         sheet_key=CONFIG['google']['tables']['KPI']['table'],
         page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
         department=department,
