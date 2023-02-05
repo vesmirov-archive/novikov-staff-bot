@@ -20,3 +20,9 @@ def get_users_list() -> list[tuple[str, str]]:
 
     users = settings.config['employees'].values()
     return [(user["firstname"], user["lastname"]) for user in users]
+
+
+def get_user_ids() -> list[str]:
+    """TODO"""
+
+    return list(settings.config['employees'].keys())
