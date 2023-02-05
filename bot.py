@@ -6,7 +6,7 @@ import telebot
 from telebot.apihelper import ApiException, ApiTelegramException
 
 import messages
-from handlers.kpi_handlers import prepare_kpi_keys_and_questions, send_kpi_to_google
+from handlers.kpi_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
 from handlers.user_handlers import user_is_registered, user_has_admin_permission, get_users_list, get_user_ids
 # from google import spredsheet
 from settings import settings
@@ -117,8 +117,8 @@ def send_users_list(message):
     text = f'Список пользователей:\n\n' + users_list_str
     bot.send_message(message.from_user.id, text)
 
-# Buttons actions
 
+# Buttons actions
 
 @bot.message_handler(regexp=r'мои показатели\S*')
 @user_has_permission
@@ -129,40 +129,38 @@ def kpi_send_message(message):
     The provided values are written on the KPI google sheet.
     """
 
-    def parse_answer(answer, kpi_keys) -> None:
-        if not answer.text.isnumeric():
+    def parse_answer(answer, kpi_keys: list[str]) -> None:
+        values_from_user = answer.text.split()
+
+        if len(values_from_user) != len(kpi_keys):
             bot.send_message(
                 answer.from_user.id,
-                'Неверный формат показателей. Попробуйте еще раз.',
+                '\U0000274E - количество показателей не соответствует числу вопросов. Попробуйте еще раз.',
             )
             return
 
-        kpi_values = message.text.split()
-
-        if len(kpi_values) != len(kpi_keys):
+        if list(filter(lambda item: not item.isnumeric(), values_from_user)):
             bot.send_message(
                 answer.from_user.id,
-                'Количество показателей не соответствует числу вопросов. Попробуйте еще раз.',
+                '\U0000274E - неверный формат показателей. Попробуйте еще раз.',
             )
             return
 
-        succeed = send_kpi_to_google(answer.from_user.id, kpi_values)
-        if succeed:
-            text = 'Ваши данные внесены. Хорошего вечера!'
-        else:
-            text = 'Во время отправки данных что-то пошло не так. Ваши данные сохранены. Разработчики уведомлены.'
+        bot.send_message(answer.from_user.id, '\U0001f552 - вношу данные.')
 
-        bot.send_message(answer.from_user.id, text)
+        data = list(zip(kpi_keys, values_from_user))
+        update_employee_kpi(answer.from_user.id, data)
+        bot.send_message(answer.from_user.id, '\U00002705 - данные внесены. Хорошего вечера!')
         return
 
 
     kpi_keys, kpi_questions = prepare_kpi_keys_and_questions(message.from_user.id)
     if len(kpi_keys) == 0:
-        bot.send_message(message.from_user.id, 'Сегодня у вас не нет запланированных отчетов. Спасибо!')
+        bot.send_message(message.from_user.id, '\U0001F44C - сегодня у вас не нет запланированных отчетов. Спасибо!')
         return
 
-    questions_str = '\n'.join([f'{order}. {question}' for order, question in enumerate(kpi_questions)])
-    text = 'Пришлите следующие количественные данные одним сообщением, согласно приведенному порядку. ' \
+    questions_str = '\n'.join([f'{order + 1}. {question}' for order, question in enumerate(kpi_questions)])
+    text = '\U0001F4CB - пришлите следующие количественные данные одним сообщением, согласно приведенному порядку. ' \
            f'Разделяйте числа пробелами:\n\n{questions_str}',
     bot.send_message(message.from_user.id, text)
 

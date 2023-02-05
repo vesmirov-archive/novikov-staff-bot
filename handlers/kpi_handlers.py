@@ -1,7 +1,7 @@
 from typing import Union
 
 from settings import settings
-from sheets.manager import manager
+from sheets.tools import update_google_sheet_cell
 
 from datetime import date
 
@@ -23,6 +23,19 @@ def prepare_kpi_keys_and_questions(employee_id: Union[int, str]) -> tuple[list[s
     return kpi_keys, kpi_questions
 
 
-def send_kpi_to_google(employee_id: str, kpi_values: tuple[str, str]) -> bool:
-    ...
+def update_employee_kpi(employee_id: Union[int, str], kpi_values: list[tuple[str, str]]) -> None:
+    """TODO"""
 
+    employee_id = str(employee_id)
+    days_diff = date.today() - date.fromisoformat(settings.config['start_date'])
+    for kpi_key, value_to_update in kpi_values:
+        kpi_item = settings.config['employees'][employee_id]['kpi'][kpi_key]
+        section_google_data = settings.config['sections'][kpi_item['section']]['google']
+
+        update_google_sheet_cell(
+            table_id=section_google_data['table'],
+            sheet_id=section_google_data['sheet'],
+            column=kpi_item['column'],
+            row=str(days_diff.days + section_google_data['start_row']),
+            value=value_to_update,
+        )

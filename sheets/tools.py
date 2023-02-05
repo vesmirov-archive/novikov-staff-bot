@@ -1,7 +1,7 @@
 import datetime
 from logging import getLogger
 
-from sheets import manager
+from sheets.manager import manager
 from settings import settings
 
 START_DATE = datetime.date.fromisoformat(settings.config['start_date'])
@@ -28,28 +28,30 @@ logger = getLogger(__name__)
 #     sheet = table.worksheet('id', section_google_data['sheet'])
 #     cell = kpi_value['column'] + str(diff.days + section_google_data['start_row'])
 
+
 def update_google_sheet_cell(
         table_id: str,
         sheet_id: str,
         column: str,
         row: str,
         value: str,
-):
+) -> None:
     """
     Updates the cell of specified Google sheets.
     """
 
-    table = google.manager.open_by_key(table_id)
+    table = manager.client.open_by_key(table_id)
     sheet = table.worksheet('id', sheet_id)
     cell = column + row
 
     try:
-        sheet.update_value(cell, cell[1])
+        sheet.update_value(cell, value)
     except Exception:
         logger.exception(
             'Could not write kpi data to the sheet',
             extra={'table': table, 'sheet_id': sheet_id, 'column': column, 'row': row, 'value': value},
         )
+
 
 # def save_current_plan_to_google_sheet(sheet_key, page_id, user_id,
 #                                       department, position, period):
