@@ -17,7 +17,6 @@ bot = telebot.TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
 main_menu_markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
 main_menu_markup.add(
     telebot.types.InlineKeyboardButton('мои показатели \U0001f3af'),
-    telebot.types.InlineKeyboardButton('мой план \U0001f4b5'),
     telebot.types.InlineKeyboardButton('день \U0001f4c6'),
     telebot.types.InlineKeyboardButton('неделя \U0001f5d3'),
     telebot.types.InlineKeyboardButton('иски \U0001f5ff'),
@@ -110,88 +109,6 @@ def send_list_users(message):
     bot.send_message(message.from_user.id, text)
 
 # Buttons actions
-
-# Not used, probably can be removed
-@bot.message_handler(regexp=r'мой план\S*')
-def set_plan_message_handler(message):
-    """
-    Plan handler:
-    allows user to set a day/week plan.
-    Shows a markup with the specified choices, which triggers set_plan callback.
-    """
-
-    bot.send_message(message.from_user.id, 'На какой срок нужно выставить план?', reply_markup=plan_markup)
-
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith('план'))
-def set_plan_callback(call):
-    """
-    Plan handler's callback:
-    ask user to provide his day/week plan values and writes them into the plan google sheet.
-    """
-
-    def set_plan(handler_message, **kwargs):
-        values = handler_message.text.split()
-
-        if len(values) < kwargs['valamount']:
-            bot.send_message(handler_message.from_user.id, 'Указаны не все показатели \u261d\U0001f3fb')
-        elif len(values) > kwargs['valamount']:
-            bot.send_message(handler_message.from_user.id, 'Указаны лишние показатели \u261d\U0001f3fb')
-        elif not all(value.isnumeric() for value in values):
-            bot.send_message(handler_message.from_user.id,
-                             'Ответ должен быть количетсвенным и состоять из чисел \u261d\U0001f3fb')
-        else:
-            # TODO: stop using json config (#6)
-            # TODO: refactor spreadsheet module (#12)
-            status = spredsheet.write_plan_to_google_sheet(
-                sheet_key=CONFIG['google']['tables']['план']['table'],
-                page_id=CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
-                user_id=handler_message.from_user.id,
-                department=kwargs['department'],
-                position=kwargs['position'],
-                period=kwargs['period'],
-                values=values,
-            )
-            if status:
-                table_url = 'https://docs.google.com/spreadsheets/d/{}/edit#gid={}/'.format(
-                    CONFIG['google']['tables']['план']['table'],
-                    CONFIG['google']['tables']['план']['sheets'][kwargs['department']],
-                )
-                bot.send_message(
-                    handler_message.from_user.id,
-                    f'Цель установлена \u2705\n\nМожно отследить свои показатели в таблице:\n{table_url}\n\n',
-                )
-            else:
-                # TODO: logging (#10)
-                bot.send_message(handler_message.from_user.id, 'Вас нет в таблице. Администратор оповещен.')
-
-    kwargs = db.get_employee_department_and_position(cursor, call.from_user.id)
-    department = kwargs['department']
-    position = kwargs['position']
-
-    kwargs['period'] = call.data.split()[-1]
-
-    try:
-        # TODO: stop using json config (#6)
-        employee = CONFIG['подразделения'][department][position]['сотрудники'][str(call.from_user.id)]
-    except KeyError:
-        # TODO: logging (#10)
-        bot.send_message(call.from_user.id, 'Я вас не узнаю. Администратор оповещен.')
-    else:
-        if employee['планирование']:
-            if employee['планирование'][kwargs['period']]:
-                bot.send_message(call.from_user.id, messages.PLAN_MESSAGE)
-                kwargs['valamount'] = len(employee['планирование'][kwargs['period']]['текущая']['план'].keys())
-                message = bot.send_message(
-                    call.from_user.id,
-                    '\n'.join(employee['планирование'][kwargs['period']]['текущая']['план'].keys()),
-                )
-                bot.register_next_step_handler(message, set_plan, **kwargs)
-            else:
-                bot.send_message(call.from_user.id, 'Ваши планы на указанный срок не отслеживаются \U0001f44c\U0001f3fb')
-        else:
-            bot.send_message(call.from_user.id, 'Ваши планы не отслеживаются ботом \U0001f44c\U0001f3fb')
-
 
 @bot.message_handler(regexp=r'мои показатели\S*')
 @user_has_permission

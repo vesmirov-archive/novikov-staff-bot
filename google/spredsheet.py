@@ -51,25 +51,6 @@ def update_google_sheet_cell(
             extra={'table': table, 'sheet_id': sheet_id, 'column': column, 'row': row, 'value': value},
         )
 
-#
-# def write_plan_to_google_sheet(sheet_key, page_id, user_id,
-#                                department, position, period, values):
-#     """
-#         Update specific cells with given values (plan)
-#     """
-#
-#     sheet = google.manager.open_by_key(sheet_key)
-#     page = sheet.worksheet('id', page_id)
-#
-#     try:
-#         cells = zip(CONFIG['подразделения'][department][position]['сотрудники'][str(user_id)]['планирование'][period]['текущая']['план'].values(), values)
-#     except KeyError:
-#         return False
-#     for cell in cells:
-#         page.update_value(cell[0], cell[1])
-#     return True
-#
-#
 # def save_current_plan_to_google_sheet(sheet_key, page_id, user_id,
 #                                       department, position, period):
 #     """
