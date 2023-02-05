@@ -7,7 +7,7 @@ from services import db
 from google import spredsheet
 from settings import settings
 from handlers.kpi_handlers import prepare_kpi_keys_and_questions, send_kpi_to_google
-from handlers.user_handlers import user_is_registered, user_has_admin_permission
+from handlers.user_handlers import user_is_registered, user_has_admin_permission, get_users_list
 
 bot = telebot.TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
 
@@ -105,7 +105,8 @@ def send_list_users(message):
     sends a list of registered users.
     """
 
-    text = f'Список пользователей:\n' + '\n'.join(f'{}{}')
+    users_list_str = '\n'.join([f'{firstname} {lastname}' for firstname, lastname in get_users_list()])
+    text = f'Список пользователей:\n' + users_list_str
     bot.send_message(message.from_user.id, text)
 
 # Buttons actions
