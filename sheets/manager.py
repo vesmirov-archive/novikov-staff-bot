@@ -1,10 +1,13 @@
+from json.decoder import JSONDecodeError
+
 import pygsheets
 from pygsheets.client import Client
 
+from errors import InvalidGoogleServiceFileTypeError
 from settings import settings
 
 
-class Google:
+class GoogleManager:
     """
     Contains Google API settings and instances.
 
@@ -16,7 +19,12 @@ class Google:
         self.manager = self.get_manager()
 
     def get_manager(self) -> Client:
-        return pygsheets.authorize(service_account_file=self.service_account_file)
+        try:
+            client = pygsheets.authorize(service_account_file=self.service_account_file)
+        except JSONDecodeError:
+            raise InvalidGoogleServiceFileTypeError
+        else:
+            return client
 
 
-google = Google(settings.google_secret_file)
+manager = GoogleManager(settings.google_secret_file)

@@ -11,7 +11,7 @@ import json
 from dotenv import dotenv_values
 import pygsheets
 
-from google import spredsheet
+from sheets import spredsheet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--config', dest='config')

@@ -1,15 +1,19 @@
-import time
+import json
+import logging
+from logging import getLogger
 
 import telebot
+from telebot.apihelper import ApiException, ApiTelegramException
 
 import messages
-from services import db
-from google import spredsheet
-from settings import settings
 from handlers.kpi_handlers import prepare_kpi_keys_and_questions, send_kpi_to_google
 from handlers.user_handlers import user_is_registered, user_has_admin_permission, get_users_list, get_user_ids
+# from google import spredsheet
+from settings import settings
 
 bot = telebot.TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
+
+logger = getLogger(__name__)
 
 
 # Markups
@@ -23,13 +27,6 @@ main_menu_markup.add(
     telebot.types.InlineKeyboardButton('выручка \U0001f4b0'),
     telebot.types.InlineKeyboardButton('красавчики \U0001F3C6'),
     telebot.types.InlineKeyboardButton('объявление \U0001f4ef'),
-)
-
-statistic_day_markup = telebot.types.InlineKeyboardMarkup()
-statistic_day_markup.add(
-    telebot.types.InlineKeyboardButton('продажи', callback_data='день продажи'),
-    telebot.types.InlineKeyboardButton('делопроизводство', callback_data='день делопроизводство'),
-    telebot.types.InlineKeyboardButton('руководство', callback_data='день руководство'),
 )
 
 statistic_week_markup = telebot.types.InlineKeyboardMarkup()
@@ -51,7 +48,17 @@ plan_markup.add(
 )
 
 
-# Permissions
+def handle_callback_by_key(key):
+    """TODO"""
+
+    def inner(call):
+        try:
+            return json.loads(call.data)['key'] == key
+        except (ValueError, KeyError):
+            return False
+
+    return inner
+
 
 def user_has_permission(func):
     """
@@ -107,7 +114,7 @@ def send_users_list(message):
     """
 
     users_list_str = '\n'.join([f'{firstname} {lastname}' for firstname, lastname in get_users_list()])
-    text = f'Список пользователей:\n' + users_list_str
+    text = f'Список пользователей:\n\n' + users_list_str
     bot.send_message(message.from_user.id, text)
 
 # Buttons actions
@@ -171,66 +178,70 @@ def kpi_send_message(message):
 #     Shows a markup with the departments list, which triggers day_statistic callback.
 #     """
 #
-#     bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=statistic_day_markup)
-
-
-# @bot.callback_query_handler(func=lambda c: c.data.startswith('день'))
-# def day_statistic_callback(call):
-#     """
-#     Day statistic handler's callback:
-#     sends user day statistics of the specified department.
-#     """
+#     @bot.callback_query_handler(func=lambda c: c.data.startswith('день'))
+#     def day_statistic_callback(call):
+#         """
+#         Day statistic handler's callback:
+#         sends user day statistics of the specified department.
+#         """
 #
-#     bot.answer_callback_query(
-#         callback_query_id=call.id,
-#         text='Минуту, собираю данные.\nОбычно это занимает не больше 5 секунд \U0001f552',
+#         bot.answer_callback_query(callback_query_id=call.id, text='Собираю данные \U0001f552')
+#
+#         department = call.data.split()[-1]
+#
+#         # TODO: stop using json config (#6)
+#         # TODO: refactor spreadsheet module (#12)
+#         kpi_daily = spredsheet.get_daily_statistic(
+#             sheet_key=CONFIG['google']['tables']['KPI']['table'],
+#             page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
+#             department=department,
+#         )
+#
+#         bot.send_message(call.message.chat.id, 'Статистика за день \U0001f4c6')
+#         result_day = [f'{k}: {v}' for k, v in kpi_daily.items()]
+#         bot.send_message(call.message.chat.id, '\n'.join(result_day))
+#
+#         bot.send_message(call.message.chat.id, 'Статистика по сотрудникам \U0001F465')
+#
+#         # TODO: stop using json config (#6)
+#         # TODO: refactor spreadsheet module (#12)
+#         kpi_daily_detail = spredsheet.get_daily_detail_statistic(
+#             sheet_key=CONFIG['google']['tables']['KPI']['table'],
+#             page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
+#             department=department
+#         )
+#         result_week = []
+#         for position, employees in kpi_daily_detail.items():
+#             employees_result = []
+#             if employees:
+#                 for employee, values in employees.items():
+#                     employees_result.append(f'\n\U0001F464 {employee}:\n')
+#                     employees_result.append('\n'.join([f'{k}: {v}' for k, v in values.items()]))
+#                 result_week.append(f'\n\n\U0001F53D {position.upper()}')
+#                 result_week.append('\n'.join(employees_result))
+#         bot.send_message(call.message.chat.id, '\n'.join(result_week))
+#
+#     reply_markup = telebot.types.InlineKeyboardMarkup()
+#     reply_markup.add(
+#         telebot.types.InlineKeyboardButton('', callback_data='day-statistic-finances'),
+#         telebot.types.InlineKeyboardButton('', callback_data='day-statistic-law'),
+#         telebot.types.InlineKeyboardButton('', callback_data='day-statistic-sales'),
+#         telebot.types.InlineKeyboardButton('', callback_data='day-statistic-support'),
 #     )
 #
-#     department = call.data.split()[-1]
-#
-#     # TODO: stop using json config (#6)
-#     # TODO: refactor spreadsheet module (#12)
-#     kpi_daily = spredsheet.get_daily_statistic(
-#         sheet_key=CONFIG['google']['tables']['KPI']['table'],
-#         page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
-#         department=department,
-#     )
-#
-#     bot.send_message(call.message.chat.id, 'Статистика за день \U0001f4c6')
-#     result_day = [f'{k}: {v}' for k, v in kpi_daily.items()]
-#     bot.send_message(call.message.chat.id, '\n'.join(result_day))
-#
-#     bot.send_message(call.message.chat.id, 'Статистика по сотрудникам \U0001F465')
-#
-#     # TODO: stop using json config (#6)
-#     # TODO: refactor spreadsheet module (#12)
-#     kpi_daily_detail = spredsheet.get_daily_detail_statistic(
-#         sheet_key=CONFIG['google']['tables']['KPI']['table'],
-#         page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
-#         department=department
-#     )
-#     result_week = []
-#     for position, employees in kpi_daily_detail.items():
-#         employees_result = []
-#         if employees:
-#             for employee, values in employees.items():
-#                 employees_result.append(f'\n\U0001F464 {employee}:\n')
-#                 employees_result.append('\n'.join([f'{k}: {v}' for k, v in values.items()]))
-#             result_week.append(f'\n\n\U0001F53D {position.upper()}')
-#             result_week.append('\n'.join(employees_result))
-#     bot.send_message(call.message.chat.id, '\n'.join(result_week))
+#     bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=reply_markup)
 
 
-# @bot.message_handler(regexp=r'неделя\S*')
-# @user_has_permission
-# def week_statistic_message_handler(message):
-#     """
-#     Week statistic handler:
-#     allows user to get statistics (KPI, leader, and other values) of the chosen department for the current week.
-#     Shows a markup with the departments list, which triggers week_statistic callback.
-#     """
-#
-#     bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=statistic_week_markup)
+@bot.message_handler(regexp=r'неделя\S*')
+@user_has_permission
+def week_statistic_message_handler(message):
+    """
+    Week statistic handler:
+    allows user to get statistics (KPI, leader, and other values) of the chosen department for the current week.
+    Shows a markup with the departments list, which triggers week_statistic callback.
+    """
+
+    bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=statistic_week_markup)
 
 
 # @bot.callback_query_handler(func=lambda c: c.data.startswith('неделя'))
@@ -372,34 +383,46 @@ def make_announcement_message_handler(message):
     sends an announcement (a message) to all users.
     """
 
-    def send_announcement(handler_message, **kwargs):
-        if handler_message.text.lower() == 'нет':
-            bot.send_message(handler_message.from_user.id, 'Принял. Отменяю \U0001f44c\U0001f3fb')
-        elif handler_message.text.lower() == 'да':
-            # TODO: there is a bug - if some user from the DB has 'stopped' the bot, this function will return an error.
-            for user_id in kwargs['ids']:
-                bot.send_message(user_id, kwargs['text'])
-            bot.send_message(handler_message.from_user.id, 'Готово! Сотрудники уведомлены \u2705')
+    announcement_text = None
+    user_ids_for_announcement = []
+
+    reply_markup = telebot.types.InlineKeyboardMarkup()
+    reply_markup.add(
+        telebot.types.InlineKeyboardButton(
+            text='да',
+            callback_data=json.dumps({'key': 'announcement', 'action': 'send'}),
+        ),
+        telebot.types.InlineKeyboardButton(
+            text='отмена',
+            callback_data=json.dumps({'key': 'announcement', 'action': 'cancel'}),
+        ),
+    )
+
+    @bot.callback_query_handler(func=handle_callback_by_key('announcement'))
+    def send_announcement(call):
+        data = json.loads(call.data)
+        if data['action'] == 'send':
+            for user_id in user_ids_for_announcement:
+                try:
+                    bot.send_message(user_id, announcement_text)
+                except ApiTelegramException:
+                    logger.exception('Sending announcement message to user failed', extra={'user_id': user_id})
+            bot.send_message(call.from_user.id, 'Готово! Сотрудники уведомлены \u2705')
         else:
-            bot.send_message(message.from_user.id, 'Я не понял ответа. Отменяю. \U0001f44c\U0001f3fb')
+            bot.send_message(call.message.chat.id, 'Отменяю \U0001f44c\U0001f3fb')
 
     def prepare_announcement(handler_message):
-        ids = get_user_ids()
-        kwargs = {'text': handler_message.text, 'ids': ids}
-        bot.send_message(handler_message.from_user.id, 'Записал. Отправляем? (да/нет)')
-        bot.register_next_step_handler(handler_message, send_announcement, **kwargs)
+        nonlocal announcement_text
 
-    bot.send_message(
-        message.from_user.id,
-        f'Привет {message.from_user.first_name}! Пришли сообщение, которое нужно отправить сотрудникам \U0001f4dd')
+        user_ids_for_announcement.extend(get_user_ids())
+        announcement_text = handler_message.text
+        bot.send_message(handler_message.from_user.id, 'Записал. Отправляем?', reply_markup=reply_markup)
+
+    bot.send_message(message.from_user.id, f'Привет! Пришли сообщение, которое нужно отправить сотрудникам \U0001f4dd')
     bot.register_next_step_handler(message, prepare_announcement)
 
 
 if __name__ == '__main__':
     # TODO: investigate logs and try to catch the errors
     # TODO: logging (#10)
-    while True:
-        try:
-            bot.polling()
-        except Exception:
-            time.sleep(5)
+    bot.infinity_polling(logger_level=logging.INFO)

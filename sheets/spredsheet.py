@@ -1,7 +1,7 @@
 import datetime
 from logging import getLogger
 
-from google import google
+from sheets import manager
 from settings import settings
 
 START_DATE = datetime.date.fromisoformat(settings.config['start_date'])
