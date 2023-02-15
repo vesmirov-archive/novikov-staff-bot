@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Union
 
-from handlers.utils import get_actual_row_for_section
+from handlers.sheets.utils import get_actual_row_for_section
 from settings import settings
 from sheets.tools import update_cell_value
 

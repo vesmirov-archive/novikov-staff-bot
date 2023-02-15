@@ -3,12 +3,11 @@ import logging
 from logging import getLogger
 
 import telebot
-from telebot.apihelper import ApiTelegramException
 
 import messages
-from handlers.statistics_employee_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
-from handlers.statistics_section_handlers import get_statistic_for_today
-from handlers.user_handlers import user_is_registered, user_has_admin_permission, get_users_list, get_user_ids
+from handlers.sheets.statistics_section_handlers import get_statistic_for_today
+from handlers.sheets.statistics_user_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
+from handlers.sheets.user_handlers import user_is_registered, user_has_admin_permission, get_users_list, get_user_ids
 from settings import settings
 
 bot = telebot.TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
@@ -222,17 +221,18 @@ def statistics_message_handler(message):
 
         for section_name, section_data in data.items():
             section_messages = [f'{section_name.capitalize()}\n\n']
-            section_messages.append('Суммарно:\n')
+
+            section_messages.append('\U000027A1 - Суммарно\n')
             for statistic_item in section_data['total']:
                 name, value = statistic_item
-                section_messages.append(f'{name}: {value}')
+                section_messages.append(f'{name.capitalize()}: {value}')
 
-            section_messages.append('\nПо сотрудникам:\n')
+            section_messages.append('\n\U000027A1 - По сотрудникам')
             for statistic_item_name, employees_list in section_data['per_employee'].items():
-                section_messages.append(f'{statistic_item_name}:')
+                section_messages.append(f'\n{statistic_item_name.capitalize()}')
                 for employee in employees_list:
                     employee_name, value = employee
-                    section_messages.append(f'\t{employee_name}: {value}')
+                    section_messages.append(f'\t\t\t{employee_name}: {value}')
 
             messages_batch.append('\n'.join(section_messages))
 
@@ -345,7 +345,7 @@ def make_announcement_message_handler(message):
             for user_id in user_ids_for_announcement:
                 try:
                     bot.send_message(user_id, announcement_text)
-                except ApiTelegramException:
+                except telebot.apihelper.ApiTelegramException:
                     logger.exception('Sending announcement message to user failed', extra={'user_id': user_id})
             bot.send_message(call.from_user.id, '\U00002705 - готово, сообщение отправлено всем сотрудникам!')
         else:
