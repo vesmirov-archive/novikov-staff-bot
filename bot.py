@@ -5,8 +5,8 @@ from logging import getLogger
 import telebot
 
 import messages
-from handlers.sheets.statistics_section_handlers import get_statistic_for_today
-from handlers.sheets.statistics_user_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
+from handlers.sheets.statistics_handlers import get_statistic_for_today, get_funds_statistics
+from handlers.sheets.statistics_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
 from handlers.sheets.user_handlers import user_is_registered, user_has_admin_permission, get_users_list, get_user_ids
 from settings import settings
 
@@ -23,6 +23,7 @@ main_reply_markup.add(
     telebot.types.InlineKeyboardButton('статистика \U0001F4CA'),
     telebot.types.InlineKeyboardButton('красавчики \U0001F3C6'),
     telebot.types.InlineKeyboardButton('объявление \U0001f4ef'),
+    telebot.types.InlineKeyboardButton('другое \U00002795'),
 )
 
 
@@ -239,7 +240,6 @@ def statistics_message_handler(message):
         result_message = '\n'.join(messages_batch)
         bot.send_message(call.message.chat.id, result_message)
 
-
     @bot.callback_query_handler(func=handle_callback_by_key('week-statistics'))
     def week_statistic_callback(call):
         """
@@ -275,7 +275,38 @@ def statistics_message_handler(message):
     )
 
 
+@bot.message_handler(regexp=r'другое\S*')
+@user_has_permission
+def other_message_handler(message):
+    """TODO"""
 
+    reply_markup_other = telebot.types.InlineKeyboardMarkup(row_width=3)
+    reply_markup_other.add(
+        telebot.types.InlineKeyboardButton(
+            text='показать наполняемость фондов',
+            callback_data=json.dumps({'key': 'funds'}),
+        ),
+    )
+
+    @bot.callback_query_handler(func=handle_callback_by_key('funds'))
+    def show_funds_statistics_callback(call):
+        bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные.')
+        funds_data = get_funds_statistics(call.message.chat.id)
+
+        message_text = ['\U0001F4CA - ДАННЫЕ ПО ФОНДАМ\n']
+        for fund_name, fund_data in funds_data.items():
+            fact, planned = fund_data
+            message_text.append(f'{fund_name}:')
+            message_text.append(f'\t\t\tфакт: {fact}')
+            message_text.append(f'\t\t\tплан: {planned}\n')
+
+        bot.send_message(call.message.chat.id, '\n'.join(message_text))
+
+    bot.send_message(
+        message.chat.id,
+        text='\U00002754 - выберите опцию',
+        reply_markup=reply_markup_other,
+    )
 
 # @bot.message_handler(regexp=r'красавчик\S*')
 # @user_has_permission

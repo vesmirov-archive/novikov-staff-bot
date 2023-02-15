@@ -1,6 +1,6 @@
 import datetime
 from logging import getLogger
-from typing import Union, Iterable
+from typing import Union, Iterable, Optional
 
 from sheets.manager import manager
 from settings import settings
@@ -33,17 +33,23 @@ logger = getLogger(__name__)
 def update_cell_value(
         table_id: str,
         sheet_id: str,
-        column: str,
-        row: str,
         value: str,
+        column: Optional[str] = None,
+        row: Optional[str] = None,
+        cell: Optional[str] = None,
 ) -> None:
     """
     Updates the cell of specified Google sheets.
     """
 
+    if not (cell or (row and column)):
+        raise AttributeError('Ether "cell" or "row" and "cell" should be provided')
+
+    if not cell:
+        cell = column + row
+
     table = manager.client.open_by_key(table_id)
     sheet = table.worksheet('id', sheet_id)
-    cell = column + row
 
     try:
         sheet.update_value(cell, value)
@@ -57,16 +63,22 @@ def update_cell_value(
 def get_cell_value(
         table_id: str,
         sheet_id: str,
-        column: str,
-        row: str,
+        column: Optional[str] = None,
+        row: Optional[str] = None,
+        cell: Optional[str] = None,
 ) -> Union[str, None]:
     """
     Get value from the specific cell
     """
 
+    if not (cell or (row and column)):
+        raise AttributeError('Ether "cell" or "row" and "cell" should be provided')
+
+    if not cell:
+        cell = column + row
+
     table = manager.client.open_by_key(table_id)
     sheet = table.worksheet('id', sheet_id)
-    cell = column + row
 
     result = None
     try:
