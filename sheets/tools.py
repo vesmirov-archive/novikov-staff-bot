@@ -1,5 +1,6 @@
 import datetime
 from logging import getLogger
+from typing import Union, Iterable
 
 from sheets.manager import manager
 from settings import settings
@@ -29,7 +30,7 @@ logger = getLogger(__name__)
 #     cell = kpi_value['column'] + str(diff.days + section_google_data['start_row'])
 
 
-def update_google_sheet_cell(
+def update_cell_value(
         table_id: str,
         sheet_id: str,
         column: str,
@@ -48,9 +49,59 @@ def update_google_sheet_cell(
         sheet.update_value(cell, value)
     except Exception:
         logger.exception(
-            'Could not write kpi data to the sheet',
-            extra={'table': table, 'sheet_id': sheet_id, 'column': column, 'row': row, 'value': value},
+            'Could not write data to the cell',
+            extra={'table': table, 'sheet_id': sheet_id, 'cell': cell, 'value': value},
         )
+
+
+def get_cell_value(
+        table_id: str,
+        sheet_id: str,
+        column: str,
+        row: str,
+) -> Union[str, None]:
+    """
+    Get value from the specific cell
+    """
+
+    table = manager.client.open_by_key(table_id)
+    sheet = table.worksheet('id', sheet_id)
+    cell = column + row
+
+    result = None
+    try:
+        result = sheet.get_value(cell)
+    except Exception:
+        logger.exception(
+            'Could not get cell data from the sheet',
+            extra={'table': table, 'sheet_id': sheet_id, 'cell': cell},
+        )
+    finally:
+        return result
+
+
+def get_cells_values(
+        table_id: str,
+        sheet_id: str,
+        columns: Iterable[str],
+        row: str,
+) -> Union[list[tuple[str, str]], None]:
+    """TODO"""
+
+    table = manager.client.open_by_key(table_id)
+    sheet = table.worksheet('id', sheet_id)
+    cells = [(column + row, column + row) for column in columns]
+
+    result = None
+    try:
+        result = tuple(map(lambda arr: arr[0][0], sheet.get_values_batch(cells)))
+    except Exception:
+        logger.exception(
+            'Could not get cells data from the sheet',
+            extra={'table': table, 'sheet_id': sheet_id, 'cells': cells},
+        )
+    finally:
+        return result
 
 
 # def save_current_plan_to_google_sheet(sheet_key, page_id, user_id,

@@ -3,12 +3,12 @@ import logging
 from logging import getLogger
 
 import telebot
-from telebot.apihelper import ApiException, ApiTelegramException
+from telebot.apihelper import ApiTelegramException
 
 import messages
-from handlers.kpi_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
+from handlers.statistics_employee_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
+from handlers.statistics_section_handlers import get_statistic_for_today
 from handlers.user_handlers import user_is_registered, user_has_admin_permission, get_users_list, get_user_ids
-# from google import spredsheet
 from settings import settings
 
 bot = telebot.TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
@@ -149,66 +149,98 @@ def send_kpi_message_handler(message):
 @user_has_permission
 def statistics_message_handler(message):
     """
-    Day statistic handler:
-    allows user to get statistics (KPI, leader, and other values) of the chosen department for today.
-    Shows a markup with the departments list, which triggers day_statistic callback.
+    TODO
     """
 
-    reply_markup_day_statistics = telebot.types.InlineKeyboardMarkup()
+    reply_markup_choose_period = telebot.types.InlineKeyboardMarkup(row_width=2)
+    reply_markup_choose_period.add(
+        telebot.types.InlineKeyboardButton(
+            text='день',
+            callback_data=json.dumps({'key': 'statistics', 'data': {'period': 'day'}}),
+        ),
+        telebot.types.InlineKeyboardButton(
+            text='неделя',
+            callback_data=json.dumps({'key': 'statistics', 'data': {'period': 'week'}}),
+        )
+    )
+
+    reply_markup_day_statistics = telebot.types.InlineKeyboardMarkup(row_width=2)
     reply_markup_day_statistics.add(
         telebot.types.InlineKeyboardButton(
             text='финансы',
-            callback_data=json.dumps({'key': 'day-statistic', 'data': {'section': 'finances'}}),
+            callback_data=json.dumps({'key': 'day-statistics', 'data': {'section': 'finances'}}),
         ),
         telebot.types.InlineKeyboardButton(
             text='делопроизводство',
-            callback_data=json.dumps({'key': 'day-statistic', 'data': {'section': 'law'}}),
+            callback_data=json.dumps({'key': 'day-statistics', 'data': {'section': 'law'}}),
         ),
         telebot.types.InlineKeyboardButton(
             text='продажи',
-            callback_data=json.dumps({'key': 'day-statistic', 'data': {'section': 'sales'}}),
+            callback_data=json.dumps({'key': 'day-statistics', 'data': {'section': 'sales'}}),
         ),
         telebot.types.InlineKeyboardButton(
             text='поддержка',
-            callback_data=json.dumps({'key': 'day-statistic', 'data': {'section': 'support'}}),
+            callback_data=json.dumps({'key': 'day-statistics', 'data': {'section': 'support'}}),
         ),
     )
 
-    reply_markup_week_statistics = telebot.types.InlineKeyboardMarkup()
+    reply_markup_week_statistics = telebot.types.InlineKeyboardMarkup(row_width=2)
     reply_markup_week_statistics.add(
         telebot.types.InlineKeyboardButton(
             text='финансы',
-            callback_data=json.dumps({'key': 'week-statistic', 'data': {'section': 'finances'}}),
+            callback_data=json.dumps({'key': 'week-statistics', 'data': {'section': 'finances'}}),
         ),
         telebot.types.InlineKeyboardButton(
             text='делопроизводство',
-            callback_data=json.dumps({'key': 'week-statistic', 'data': {'section': 'law'}}),
+            callback_data=json.dumps({'key': 'week-statistics', 'data': {'section': 'law'}}),
         ),
         telebot.types.InlineKeyboardButton(
             text='продажи',
-            callback_data=json.dumps({'key': 'week-statistic', 'data': {'section': 'sales'}}),
+            callback_data=json.dumps({'key': 'week-statistics', 'data': {'section': 'sales'}}),
         ),
         telebot.types.InlineKeyboardButton(
             text='поддержка',
-            callback_data=json.dumps({'key': 'week-statistic', 'data': {'section': 'support'}}),
+            callback_data=json.dumps({'key': 'week-statistics', 'data': {'section': 'support'}}),
         ),
     )
 
-    @bot.callback_query_handler(func=handle_callback_by_key('day-statistic'))
+    @bot.callback_query_handler(func=handle_callback_by_key('day-statistics'))
     def day_statistic_callback(call):
         """
         Day statistic handler's callback:
         sends user day statistics for the specified section.
         """
 
-        bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные.')
+        bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные за день.')
 
         callback_data = json.loads(call.data)
         section = callback_data['data']['section']
 
-        ...
+        data = get_statistic_for_today(filter_by_section=section)
 
-    @bot.callback_query_handler(func=handle_callback_by_key('week-statistic'))
+        messages_batch = ['\U0001F4C5 - СТАТИСТИКА ЗА ДЕНЬ\n']
+
+        for section_name, section_data in data.items():
+            section_messages = [f'{section_name.capitalize()}\n\n']
+            section_messages.append('Суммарно:\n')
+            for statistic_item in section_data['total']:
+                name, value = statistic_item
+                section_messages.append(f'{name}: {value}')
+
+            section_messages.append('\nПо сотрудникам:\n')
+            for statistic_item_name, employees_list in section_data['per_employee'].items():
+                section_messages.append(f'{statistic_item_name}:')
+                for employee in employees_list:
+                    employee_name, value = employee
+                    section_messages.append(f'\t{employee_name}: {value}')
+
+            messages_batch.append('\n'.join(section_messages))
+
+        result_message = '\n'.join(messages_batch)
+        bot.send_message(call.message.chat.id, result_message)
+
+
+    @bot.callback_query_handler(func=handle_callback_by_key('week-statistics'))
     def week_statistic_callback(call):
         """
         Week statistic handler's callback:
@@ -220,13 +252,29 @@ def statistics_message_handler(message):
         callback_data = json.loads(call.data)
         section = callback_data['data']['section']
 
+        data = ...
+
+        messages_batch = ['\U0001F4C6 - СТАТИСТИКА ЗА НЕДЕЛЮ\n\n']
         ...
+
+    @bot.callback_query_handler(func=handle_callback_by_key('statistics'))
+    def choose_section_callback(call):
+        callback_data = json.loads(call.data)
+        period = callback_data['data']['period']
+
+        bot.send_message(
+            message.chat.id,
+            text='\U0001F520 - выберите направление',
+            reply_markup=reply_markup_day_statistics if period == 'day' else reply_markup_week_statistics,
+        )
 
     bot.send_message(
         message.chat.id,
-        text='\U0001F520 - выберите направление',
-        reply_markup=reply_markup_day_statistics,
+        text='\U0001F5D3 - выберите период',
+        reply_markup=reply_markup_choose_period,
     )
+
+
 
 
 # @bot.message_handler(regexp=r'красавчик\S*')
@@ -299,18 +347,25 @@ def make_announcement_message_handler(message):
                     bot.send_message(user_id, announcement_text)
                 except ApiTelegramException:
                     logger.exception('Sending announcement message to user failed', extra={'user_id': user_id})
-            bot.send_message(call.from_user.id, 'Готово! Сотрудники уведомлены \u2705')
+            bot.send_message(call.from_user.id, '\U00002705 - готово, сообщение отправлено всем сотрудникам!')
         else:
-            bot.send_message(call.message.chat.id, 'Отменяю \U0001f44c\U0001f3fb')
+            bot.send_message(call.message.chat.id, 'Отменяю ')
 
     def prepare_announcement(handler_message):
         nonlocal announcement_text
 
         user_ids_for_announcement.extend(get_user_ids())
         announcement_text = handler_message.text
-        bot.send_message(handler_message.from_user.id, 'Записал. Отправляем?', reply_markup=reply_markup)
+        bot.send_message(
+            handler_message.from_user.id,
+            '\U0001f44c\U0001f3fb - записал. Отправляем?',
+            reply_markup=reply_markup,
+        )
 
-    bot.send_message(message.from_user.id, f'Привет! Пришли сообщение, которое нужно отправить сотрудникам \U0001f4dd')
+    bot.send_message(
+        message.from_user.id,
+        f'\U0001f4dd - пришли текст сообщения, которое нужно отправить всем сотрудникам.',
+    )
     bot.register_next_step_handler(message, prepare_announcement)
 
 
