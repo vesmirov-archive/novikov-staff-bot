@@ -162,30 +162,3 @@ def update_employee_kpi(employee_id: Union[int, str], kpi_values: list[tuple[str
             column=kpi_item['column'],
             row=str(get_actual_row_for_section(kpi_item['section'])),
         )
-
-
-def get_funds_statistics(user_id: Union[int, str]) -> dict[str, tuple[str, str]]:
-    """TODO"""
-
-    result =  {}
-
-    user_id = str(user_id)
-    for fund in settings.config['other']['funds']['items'].values():
-        user = settings.config['employees'][user_id]
-        if fund['statistics']['admin_only'] and not user['admin']:
-            continue
-
-        fund_actual = get_cell_value(
-            table_id=settings.config['other']['funds']['google']['table'],
-            sheet_id=settings.config['other']['funds']['google']['sheet'],
-            cell=fund['statistics']['cells']['actual'],
-        )
-        fund_planned = get_cell_value(
-            table_id=settings.config['other']['funds']['google']['table'],
-            sheet_id=settings.config['other']['funds']['google']['sheet'],
-            cell=fund['statistics']['cells']['actual'],
-        )
-
-        result[fund['name']] = (fund_actual, fund_planned)
-
-    return result

@@ -30,3 +30,13 @@ def get_user_ids() -> list[str]:
     """TODO"""
 
     return list(settings.config['employees'].keys())
+
+
+def get_user_full_name_from_id(user_id: Union[str, int]) -> tuple[str, str]:
+    """TODO"""
+
+    user_id = str(user_id)
+    return (
+        settings.config['employees'][user_id]['firstname'],
+        settings.config['employees'][user_id]['lastname'],
+    )

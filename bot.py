@@ -5,9 +5,11 @@ from logging import getLogger
 import telebot
 
 import messages
-from handlers.sheets.statistics_handlers import get_statistic_for_today, get_funds_statistics
+from handlers.sheets.other_handlers import get_key_values, get_funds_statistics, get_leader
+from handlers.sheets.statistics_handlers import get_statistic_for_today
 from handlers.sheets.statistics_handlers import prepare_kpi_keys_and_questions, update_employee_kpi
-from handlers.sheets.user_handlers import user_is_registered, user_has_admin_permission, get_users_list, get_user_ids
+from handlers.sheets.user_handlers import (user_is_registered, user_has_admin_permission, get_users_list, get_user_ids,
+                                           get_user_full_name_from_id)
 from settings import settings
 
 bot = telebot.TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
@@ -17,11 +19,10 @@ logger = getLogger(__name__)
 
 # Markups
 
-main_reply_markup = telebot.types.ReplyKeyboardMarkup(row_width=3)
+main_reply_markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
 main_reply_markup.add(
     telebot.types.InlineKeyboardButton('мои показатели \U0001f3af'),
     telebot.types.InlineKeyboardButton('статистика \U0001F4CA'),
-    telebot.types.InlineKeyboardButton('красавчики \U0001F3C6'),
     telebot.types.InlineKeyboardButton('объявление \U0001f4ef'),
     telebot.types.InlineKeyboardButton('другое \U00002795'),
 )
@@ -275,79 +276,8 @@ def statistics_message_handler(message):
     )
 
 
-@bot.message_handler(regexp=r'другое\S*')
-@user_has_permission
-def other_message_handler(message):
-    """TODO"""
-
-    reply_markup_other = telebot.types.InlineKeyboardMarkup(row_width=3)
-    reply_markup_other.add(
-        telebot.types.InlineKeyboardButton(
-            text='показать наполняемость фондов',
-            callback_data=json.dumps({'key': 'funds'}),
-        ),
-    )
-
-    @bot.callback_query_handler(func=handle_callback_by_key('funds'))
-    def show_funds_statistics_callback(call):
-        bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные.')
-        funds_data = get_funds_statistics(call.message.chat.id)
-
-        message_text = ['\U0001F4CA - ДАННЫЕ ПО ФОНДАМ\n']
-        for fund_name, fund_data in funds_data.items():
-            fact, planned = fund_data
-            message_text.append(f'{fund_name}:')
-            message_text.append(f'\t\t\tфакт: {fact}')
-            message_text.append(f'\t\t\tплан: {planned}\n')
-
-        bot.send_message(call.message.chat.id, '\n'.join(message_text))
-
-    bot.send_message(
-        message.chat.id,
-        text='\U00002754 - выберите опцию',
-        reply_markup=reply_markup_other,
-    )
-
-# @bot.message_handler(regexp=r'красавчик\S*')
-# @user_has_permission
-# def day_leader_message_handler(message):
-#     """
-#     Day leader handler:
-#     allows to see the leader (an employee with the best KPI values) of the chosen department for the current day.
-#     Shows a markup with the departments list, which triggers day_leader callback.
-#     """
-#     leader_markup = telebot.types.InlineKeyboardMarkup()
-#     leader_markup.add(
-#         telebot.types.InlineKeyboardButton('делопроизводство', callback_data='красавчик делопроизводство'),
-#     )
-#
-#     @bot.callback_query_handler(func=lambda c: c.data.startswith('красавчик'))
-#     def day_leader_callback(call):
-#         """
-#         Day leader handler's callback:
-#         tell who is the leader of the specified department.
-#         If there is no leader for today, just sends a corresponding message.
-#         """
-#
-#         department = call.data.split()[-1]
-#         # TODO: stop using json config (#6)
-#         # TODO: refactor spreadsheet module (#12)
-#         leaders = spredsheet.get_leaders_from_google_sheet(
-#             sheet_key=CONFIG['google']['tables']['KPI']['table'],
-#             page_id=CONFIG['google']['tables']['KPI']['sheets'][department],
-#             department=department,
-#         )
-#         if leaders:
-#             bot.send_message(call.message.chat.id, '\U0001f38a Красавчики дня: ' + ', '.join(leaders))
-#         else:
-#             bot.send_message(call.message.chat.id, '\U0001f5ff Красавчиков дня нет')
-#
-#     bot.send_message(message.chat.id, text='Выберите отдел', reply_markup=leader_markup)
-
-
 @bot.message_handler(regexp=r'объявление\S*')
 @user_has_permission
-@user_is_admin
 def make_announcement_message_handler(message):
     """
     Announcement handler (admin permission required):
@@ -380,13 +310,14 @@ def make_announcement_message_handler(message):
                     logger.exception('Sending announcement message to user failed', extra={'user_id': user_id})
             bot.send_message(call.from_user.id, '\U00002705 - готово, сообщение отправлено всем сотрудникам!')
         else:
-            bot.send_message(call.message.chat.id, 'Отменяю ')
+            bot.send_message(call.message.chat.id, '\U0000274E - отменяю.')
 
     def prepare_announcement(handler_message):
         nonlocal announcement_text
 
+        sender_full_name = ' '.join(get_user_full_name_from_id(handler_message.from_user.id))
         user_ids_for_announcement.extend(get_user_ids())
-        announcement_text = handler_message.text
+        announcement_text = f'Отправитель: {sender_full_name}\n' + handler_message.text
         bot.send_message(
             handler_message.from_user.id,
             '\U0001f44c\U0001f3fb - записал. Отправляем?',
@@ -398,6 +329,73 @@ def make_announcement_message_handler(message):
         f'\U0001f4dd - пришли текст сообщения, которое нужно отправить всем сотрудникам.',
     )
     bot.register_next_step_handler(message, prepare_announcement)
+
+
+@bot.message_handler(regexp=r'другое\S*')
+@user_has_permission
+def other_message_handler(message):
+    """TODO"""
+
+    reply_markup_other = telebot.types.InlineKeyboardMarkup(row_width=1)
+    reply_markup_other.add(
+        telebot.types.InlineKeyboardButton(
+            text='показать наполняемость фондов',
+            callback_data=json.dumps({'key': 'other-funds'}),
+        ),
+        telebot.types.InlineKeyboardButton(
+            text='показать статус по ключевым показателям',
+            callback_data=json.dumps({'key': 'other-key_values'}),
+        ),
+        telebot.types.InlineKeyboardButton(
+            text='показать красавчика за сегодня',
+            callback_data=json.dumps({'key': 'other-leader'}),
+        ),
+    )
+
+    @bot.callback_query_handler(func=handle_callback_by_key('other-funds'))
+    def show_funds_fulfillment_callback(call):
+        bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные.')
+        funds_data = get_funds_statistics(call.message.chat.id)
+
+        message_text = ['\U0001F4CA - ДАННЫЕ ПО ФОНДАМ\n']
+        for fund_name, fund_data in funds_data.items():
+            actual, planned = fund_data
+            message_text.append(f'{fund_name}:')
+            message_text.append(f'\t\t\tфакт: {actual}')
+            message_text.append(f'\t\t\tплан: {planned}\n')
+
+        bot.send_message(call.message.chat.id, '\n'.join(message_text))
+
+    @bot.callback_query_handler(func=handle_callback_by_key('other-key_values'))
+    def show_key_values_fulfillment_callback(call):
+        bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные.')
+        key_values_data = get_key_values()
+
+        message_text = ['\U0001F511 - ДАННЫЕ ПО КЛЮЧЕВЫМ ПОКАЗАТЕЛЯМ\n']
+        for key_value_data in key_values_data.values():
+            message_text.append(f'{key_value_data["name"].upper()}\n')
+
+            for value in key_value_data['values']:
+                period, actual, planned = value
+                message_text.append(f'{period}\t\t\tфакт: {actual}\t\t\t{f"план: {planned}" if planned else ""}')
+            message_text.append('')
+
+        bot.send_message(call.message.chat.id, '\n'.join(message_text))
+
+    @bot.callback_query_handler(func=handle_callback_by_key('other-leader'))
+    def show_the_leader_for_today(call):
+        bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные.')
+        leaders_for_today = get_leader()
+        if not leaders_for_today:
+            bot.send_message(call.message.chat.id, '\U0001F9E2 - сегодня красавчиков нет.')
+        else:
+            bot.send_message(call.message.chat.id, f'\U0001F451 - красавчики сегодня:\n{", ".join(leaders_for_today)}')
+
+    bot.send_message(
+        message.chat.id,
+        text='\U00002754 - выберите действие',
+        reply_markup=reply_markup_other,
+    )
 
 
 if __name__ == '__main__':
