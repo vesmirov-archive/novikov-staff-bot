@@ -5,7 +5,7 @@
 import psycopg2
 from dotenv import dotenv_values
 
-from service.db import connect_database
+from services.db import connect_database
 
 
 def main():
@@ -13,7 +13,7 @@ def main():
         Create 'employees' table in database and adds user from .env file
     """
 
-    env = dotenv_values('.env')
+    env = dotenv_values('../.env')
     connect, cursor = connect_database(env)
 
     try:

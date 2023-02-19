@@ -19,16 +19,16 @@ import pygsheets
 import telebot
 
 import messages
-from service import db
-from service import spredsheet
+from services import db
+from sheets import spredsheet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--config', dest='config')
 args = parser.parse_args()
 
-env = dotenv_values('.env')
+env = dotenv_values('../.env')
 
-with open('config.json', 'r') as file:
+with open('../config.json', 'r') as file:
     CONFIG = json.loads(file.read())
 
 TOKEN = env.get('TELEGRAM_STAFF_TOKEN')
