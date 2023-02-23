@@ -219,10 +219,10 @@ def statistics_message_handler(message):
 
         data = get_statistic_for_today(filter_by_section=section)
 
-        messages_batch = ['\U0001F4C5 - СТАТИСТИКА ЗА ДЕНЬ\n']
+        messages_batch = ['\U0001F4C5 - СТАТИСТИКА ЗА ДЕНЬ']
 
         for section_name, section_data in data.items():
-            section_messages = [f'{section_name.capitalize()}\n\n']
+            section_messages = [f'\n\n{section_name.upper()}\n']
 
             section_messages.append('\U000027A1 - Суммарно\n')
             for statistic_item in section_data['total']:
@@ -299,16 +299,19 @@ def make_announcement_message_handler(message):
         ),
     )
 
+    def send_announcement(message):
+        for user_id in user_ids_for_announcement:
+            try:
+                bot.send_message(user_id, announcement_text)
+            except telebot.apihelper.ApiTelegramException:
+                logger.exception('Sending announcement message to user failed', extra={'user_id': user_id})
+        bot.send_message(message.from_user.id, '\U00002705 - готово, сообщение отправлено всем сотрудникам!')
+
     @bot.callback_query_handler(func=handle_callback_by_key('announcement'))
-    def send_announcement(call):
+    def handle_announcement(call):
         callback_data = json.loads(call.data)
         if callback_data['data']['action'] == 'send':
-            for user_id in user_ids_for_announcement:
-                try:
-                    bot.send_message(user_id, announcement_text)
-                except telebot.apihelper.ApiTelegramException:
-                    logger.exception('Sending announcement message to user failed', extra={'user_id': user_id})
-            bot.send_message(call.from_user.id, '\U00002705 - готово, сообщение отправлено всем сотрудникам!')
+            bot.register_next_step_handler(message, send_announcement)
         else:
             bot.send_message(call.message.chat.id, '\U0000274E - отменяю.')
 
@@ -355,7 +358,9 @@ def other_message_handler(message):
     @bot.callback_query_handler(func=handle_callback_by_key('other-funds'))
     def show_funds_fulfillment_callback(call):
         bot.send_message(call.message.chat.id, '\U0001f552 - cобираю данные.')
-        funds_data = get_funds_statistics(call.message.chat.id)
+
+        requested_by_admin = user_has_admin_permission(call.message.chat.id)
+        funds_data = get_funds_statistics(full=True if requested_by_admin else False)
 
         message_text = ['\U0001F4CA - ДАННЫЕ ПО ФОНДАМ\n']
         for fund_name, fund_data in funds_data.items():
