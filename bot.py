@@ -361,8 +361,7 @@ def other_message_handler(message):
         for fund_name, fund_data in funds_data.items():
             actual, planned = fund_data
             message_text.append(f'{fund_name}:')
-            message_text.append(f'\t\t\tфакт: {actual}')
-            message_text.append(f'\t\t\tплан: {planned}\n')
+            message_text.append(f'[факт] {actual} : {planned} [план]\n')
 
         bot.send_message(call.message.chat.id, '\n'.join(message_text))
 

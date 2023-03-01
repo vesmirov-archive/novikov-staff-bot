@@ -26,7 +26,7 @@ def get_funds_statistics(user_id: Union[int, str]) -> dict[str, tuple[str, str]]
         fund_planned = get_cell_value(
             table_id=settings.config['other']['funds']['google']['table'],
             sheet_id=settings.config['other']['funds']['google']['sheet'],
-            cell=fund_data['statistics']['cells']['actual'],
+            cell=fund_data['statistics']['cells']['planned'],
         )
 
         result[fund_data['name']] = (fund_actual, fund_planned)
