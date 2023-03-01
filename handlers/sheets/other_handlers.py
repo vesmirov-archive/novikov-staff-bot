@@ -7,15 +7,13 @@ from sheets.tools import get_cell_value
 logger = logging.getLogger(__name__)
 
 
-def get_funds_statistics(user_id: Union[int, str]) -> dict[str, tuple[str, str]]:
+def get_funds_statistics(full=False) -> dict[str, tuple[str, str]]:
     """TODO"""
 
     result = {}
 
-    user_id = str(user_id)
     for fund_data in settings.config['other']['funds']['items'].values():
-        user = settings.config['employees'][user_id]
-        if fund_data['statistics']['admin_only'] and not user['admin']:
+        if fund_data['statistics']['admin_only'] and not full:
             continue
 
         fund_actual = get_cell_value(
