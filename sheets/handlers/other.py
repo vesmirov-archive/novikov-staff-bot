@@ -1,5 +1,5 @@
 import logging
-from typing import Union, Optional
+from typing import Optional
 
 from settings import settings
 from sheets.tools import get_cell_value

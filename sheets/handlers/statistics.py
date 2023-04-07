@@ -1,14 +1,14 @@
 from datetime import date
 from typing import Union, Optional
 
-from handlers.sheets.utils import get_actual_row_for_section
+from sheets.utils import get_actual_row_for_section
 from settings import settings
-from sheets.tools import update_cell_value, get_cells_values, get_cell_value
+from sheets.tools import update_cell_value, get_cells_values
 
 
 def get_user_statistic_for_today(
         user_id: str,
-        filter_by_section: Optional[str] = None,
+        filter_by_section: Optional[str],
 ) -> dict[str, Union[str, dict[str, str]]]:
     """
     TODO
@@ -85,27 +85,7 @@ def get_statistic_for_today(filter_by_section: Optional[str] = None) -> dict[str
 
     result = {}
 
-    for user_id, user_data in settings.config['employees'].items():
-        if not user_data['statistics']:
-            continue
-
-        user_statistic = get_user_statistic_for_today(
-            user_id=user_id,
-            filter_by_section=filter_by_section if filter_by_section else None,
-        )
-        for item_data in user_statistic.values():
-            section_name = settings.config['sections'][item_data['section']]['name']
-            result.setdefault(
-                section_name, {},
-            ).setdefault(
-                'per_employee', {},
-            ).setdefault(
-                item_data['name'], [],
-            ).append(
-                (f'{user_data["firstname"]} {user_data["lastname"]}', item_data['value']),
-            )
-
-    # get total
+    # fill with total values
     for section, data in settings.config['sections'].items():
         section_name = settings.config['sections'][section]['name']
 
@@ -125,7 +105,24 @@ def get_statistic_for_today(filter_by_section: Optional[str] = None) -> dict[str
         )
         total_data = list(zip(names, values))
 
-        result[section_name].update({'total': total_data})
+        result.setdefault(section_name, {}).update({'total': total_data, 'per_employee': {}})
+
+    # fill with employee values
+    for user_id, user_data in settings.config['employees'].items():
+        if not user_data['statistics']:
+            continue
+
+        user_statistic = get_user_statistic_for_today(
+            user_id=user_id,
+            filter_by_section=filter_by_section,
+        )
+        for item_data in user_statistic.values():
+            section_name = settings.config['sections'][item_data['section']]['name']
+            result[section_name]['per_employee'].setdefault(
+                item_data['name'], [],
+            ).append(
+                (f'{user_data["firstname"]} {user_data["lastname"]}', item_data['value']),
+            )
 
     return result
 
