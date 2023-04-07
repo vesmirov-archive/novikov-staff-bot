@@ -2,7 +2,7 @@ import datetime
 from logging import getLogger
 from typing import Union, Iterable, Optional
 
-from sheets.manager import manager
+from manager import manager
 from settings import settings
 
 START_DATE = datetime.date.fromisoformat(settings.config['start_date'])

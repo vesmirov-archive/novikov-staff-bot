@@ -3,7 +3,7 @@ from datetime import date
 from settings import settings
 
 
-def get_actual_row_for_section(section) -> int:
+def get_actual_row_for_section(section: str) -> int:
     """TODO"""
 
     days_diff = date.today() - date.fromisoformat(settings.config['start_date'])

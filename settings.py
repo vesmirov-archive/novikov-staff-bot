@@ -3,14 +3,12 @@ import os
 from json.decoder import JSONDecodeError
 from types import MappingProxyType
 
+import telebot
 from dotenv import load_dotenv, dotenv_values
+
 from errors import InvalidConfigurationFileTypeError
 
-load_dotenv('dev.env')
-
-CONFIGURATION_FILE_PATH = os.getenv('CONFIGURATION_FILE_PATH')
-ENVIRONMENT_FILE_PATH = os.getenv('ENVIRONMENT_FILE_PATH')
-GOOGLE_SECRET_FILE = os.getenv('GOOGLE_SECRET_FILE')
+load_dotenv('project.env')
 
 
 class Settings:
@@ -18,18 +16,17 @@ class Settings:
     Describes, stores and configures all the project settings.
 
     :configuration_file_path: - a path to the configuration JSON file, which represents the base project's config.
+    :google_secret_file_path: - a path to the Google authentication file
+    :telegram_token: - Telegram authentication token
     """
 
     def __init__(
             self,
             configuration_file_path: str,
-            environment_file_path: str,
             google_secret_file_path: str,
     ):
         self.config = self._setup_config(configuration_file_path)
-        self.environments = self._setup_environments(environment_file_path)
         self.configuration_file = configuration_file_path
-        self.environment_file = environment_file_path
         self.google_secret_file = google_secret_file_path
 
     def __map_dictionary(self, object) -> MappingProxyType:
@@ -58,4 +55,22 @@ class Settings:
         return self.__map_dictionary(environment_variables)
 
 
-settings = Settings(CONFIGURATION_FILE_PATH, ENVIRONMENT_FILE_PATH, GOOGLE_SECRET_FILE)
+class Telegram:
+    """
+    Describes, stores and configures all the telegram settings.
+
+    :bot_token: - a bot's telegram authentication token
+    """
+
+    def __init__(self, bot_token: str):
+        self.bot = telebot.TeleBot(bot_token)
+        self.main_markup = telebot.types.ReplyKeyboardMarkup(row_width=2)
+
+
+settings = Settings(
+    configuration_file_path=os.getenv('CONFIGURATION_FILE_PATH'),
+    google_secret_file_path=os.getenv('GOOGLE_SECRET_FILE'),
+)
+telegram = Telegram(
+    bot_token=os.getenv('TELEGRAM_TOKEN'),
+)

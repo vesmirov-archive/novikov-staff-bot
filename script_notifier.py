@@ -10,8 +10,10 @@ import logging
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
 
-from handlers.sheets import user_handlers, statistics_handlers, other_handlers
-from settings import settings
+from sheets.handlers import statistics, other
+from utils import users
+
+from settings import settings, telegram as tele
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +22,10 @@ parser.add_argument('-a', '--action', dest='action')
 args = parser.parse_args()
 
 
-def send_statistics_for_day(bot: TeleBot) -> None:
+def send_statistics_for_day() -> None:
     """TODO"""
 
-    statistics_data = statistics_handlers.get_statistic_for_today()
+    statistics_data = statistics.get_statistic_for_today()
 
     statistics_messages_batch = ['\U0001F4C5 - СТАТИСТИКА ЗА ДЕНЬ']
 
@@ -46,7 +48,7 @@ def send_statistics_for_day(bot: TeleBot) -> None:
 
     statistics_result_message = '\n'.join(statistics_messages_batch)
 
-    key_values_data = other_handlers.get_key_values()
+    key_values_data = other.get_key_values()
 
     key_values_messages_batch = ['\U0001F511 - ДАННЫЕ ПО КЛЮЧЕВЫМ ПОКАЗАТЕЛЯМ\n']
     for key_value_data in key_values_data.values():
@@ -59,7 +61,7 @@ def send_statistics_for_day(bot: TeleBot) -> None:
 
     key_values_result_message = '\n'.join(key_values_messages_batch)
 
-    funds_data = other_handlers.get_funds_statistics()
+    funds_data = other.get_funds_statistics()
 
     funds_messages_batch = ['\U0001F4CA - ДАННЫЕ ПО ФОНДАМ\n']
     for fund_name, fund_data in funds_data.items():
@@ -70,7 +72,7 @@ def send_statistics_for_day(bot: TeleBot) -> None:
 
     funds_result_message = '\n'.join(funds_messages_batch)
 
-    funds_admin_data = other_handlers.get_funds_statistics(full=True)
+    funds_admin_data = other.get_funds_statistics(full=True)
 
     funds_admin_messages_batch = ['\U0001F4CA - ДАННЫЕ ПО ФОНДАМ\n']
     for fund_name, fund_data in funds_admin_data.items():
@@ -81,30 +83,30 @@ def send_statistics_for_day(bot: TeleBot) -> None:
 
     funds_admin_result_message = '\n'.join(funds_admin_messages_batch)
 
-    leaders_for_today = other_handlers.get_leader()
+    leaders_for_today = other.get_leader()
     if not leaders_for_today:
         leaders_for_today_result_message = '\U0001F9E2 - сегодня красавчиков нет.'
     else:
         leaders_for_today_result_message = f'\U0001F451 - красавчики сегодня:\n{", ".join(leaders_for_today)}'
 
-    for user_id in user_handlers.get_user_ids():
-        sending_to_admin = user_handlers.user_has_admin_permission(user_id)
+    for user_id in users.get_user_ids():
+        sending_to_admin = users.user_has_admin_permission(user_id)
         try:
-            bot.send_message(user_id, statistics_result_message)
-            bot.send_message(user_id, key_values_result_message)
-            bot.send_message(user_id, funds_admin_result_message if sending_to_admin else funds_result_message)
-            bot.send_message(user_id, leaders_for_today_result_message)
+            tele.bot.send_message(user_id, statistics_result_message)
+            tele.bot.send_message(user_id, key_values_result_message)
+            tele.bot.send_message(user_id, funds_admin_result_message if sending_to_admin else funds_result_message)
+            tele.bot.send_message(user_id, leaders_for_today_result_message)
         except ApiTelegramException:
             logger.exception('Sending scheduled day statistics to user failed', extra={'user_id': user_id})
 
 
-def send_statistics_for_week(bot: TeleBot) -> None:
+def send_statistics_for_week() -> None:
     """TODO"""
 
     ...
 
 
-def send_statistics_reminder(bot: TeleBot) -> None:
+def send_statistics_reminder() -> None:
     """TODO"""
 
     ...
@@ -113,14 +115,12 @@ def send_statistics_reminder(bot: TeleBot) -> None:
 def handle_action() -> None:
     """TODO"""
 
-    bot = TeleBot(settings.environments['TELEGRAM_STAFF_TOKEN'])
-
     if args.action == 'statistics-day':
-        send_statistics_for_day(bot)
+        send_statistics_for_day()
     elif args.action == 'statistics-week':
-        send_statistics_for_week(bot)
+        send_statistics_for_week()
     elif args.action == 'send-statistics-reminder':
-        send_statistics_reminder(bot)
+        send_statistics_reminder()
 
 
 if __name__ == '__main__':
