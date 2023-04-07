@@ -38,7 +38,7 @@ def handle_callback_by_key(key):
     return inner
 
 
-def user_has_permission(func):
+def user_is_authorized(func):
     """
     Permission decorator.
     Checks if the telegram user is registered and has access to the bot.
@@ -56,28 +56,10 @@ def user_has_permission(func):
     return wrapper
 
 
-def user_is_admin(func):
-    """
-    Permission decorator.
-    Checks if the telegram user is admin.
-    Otherwise, sends an error message.
-    """
-
-    @wraps(func)
-    def wrapper(message):
-        if user_has_admin_permission(message.from_user.id):
-            func(message)
-        else:
-            message_text = 'У вас недостаточно прав для выполнения данной команды.'
-            tele.bot.send_message(message.from_user.id, message_text)
-
-    return wrapper
-
-
 # Commands actions
 
 @tele.bot.message_handler(commands=['start'])
-@user_has_permission
+@user_is_authorized
 def start_command_handler(message):
     """
     /start command handler:
@@ -94,7 +76,7 @@ def start_command_handler(message):
 
 
 @tele.bot.message_handler(commands=['users'])
-@user_has_permission
+@user_is_authorized
 def users_command_handler(message):
     """
     /users command handler:
@@ -109,7 +91,7 @@ def users_command_handler(message):
 # Message actions
 
 @tele.bot.message_handler(regexp=r'мои показатели\S*')
-@user_has_permission
+@user_is_authorized
 def get_kpi_from_employee(message):
     """
     KPI handler:
@@ -155,7 +137,7 @@ def get_kpi_from_employee(message):
 
 
 @tele.bot.message_handler(regexp=r'статистика\S*')
-@user_has_permission
+@user_is_authorized
 def send_statistics(message):
     """
     TODO
@@ -285,14 +267,14 @@ def send_statistics(message):
 
 
 @tele.bot.message_handler(regexp=r'объявление\S*')
-@user_has_permission
+@user_is_authorized
 def send_announcement(message):
     AnnouncementHandler().make_announcement(message)
 
 
 # TODO: split to separated handlers
 @tele.bot.message_handler(regexp=r'другое\S*')
-@user_has_permission
+@user_is_authorized
 def other_functional(message):
     """TODO"""
 

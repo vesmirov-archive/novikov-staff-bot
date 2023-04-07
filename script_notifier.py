@@ -7,13 +7,11 @@
 import argparse
 import logging
 
-from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
 
+from settings import telegram as tele
 from sheets.handlers import statistics, other
 from utils import users
-
-from settings import settings, telegram as tele
 
 logger = logging.getLogger(__name__)
 
