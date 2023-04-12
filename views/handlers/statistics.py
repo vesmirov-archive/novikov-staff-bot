@@ -1,0 +1,233 @@
+from telebot.types import Message, ReplyKeyboardMarkup, InlineKeyboardButton
+
+from settings import settings, telegram as tele
+from sheets.handlers.other import get_funds_statistics, get_leader, get_key_values
+from sheets.handlers.statistics import get_statistic_for_today
+from utils.users import user_has_admin_permission
+
+
+class StatisticsHandler:
+    """TODO"""
+
+    STATISTICS_CHOICES = {
+        'general_values': '\U0001f4bc - основные показатели',
+        'key_values':  '\U0001f511 - ключевые показатели',
+        'funds_fulfillment': '\U0001f4ca - наполняемость фондов',
+        'leader': '\U0001f451 - красавчик',
+        'main_menu':  '\U000021a9\U0000fe0f - главное меню',
+    }
+    PERIOD_CHOICES = {
+        'day': '\U00000031\U0000FE0F\U000020E3 - день',
+        'week': '\U00000037\U0000FE0F\U000020E3 - неделя',
+        'month': '\U0001f522 - месяц',
+        'accumulative': '\U0001F520 - акумулятивно',
+    }
+    SECTION_CHOICES = {section: f"\U0001f5c2 - {data['name']}" for section, data in settings.config['sections'].items()}
+
+    PERIOD_PER_STATISTICS_CHOICES = {
+        'general_values': ['day', 'week'],
+        'key_values': ['accumulative'],
+        'funds_fulfillment': ['month'],
+        'leader': ['day'],
+    }
+
+    def __init__(self, sender_id: str):
+        self.sender_id = sender_id
+        self.statistics_markup = ReplyKeyboardMarkup(row_width=2)
+        for text in self.STATISTICS_CHOICES.values():
+            self.statistics_markup.add(InlineKeyboardButton(text=text))
+
+        self.section_markup = ReplyKeyboardMarkup(row_width=2)
+        for text in self.SECTION_CHOICES.values():
+            self.section_markup.add(InlineKeyboardButton(text=text))
+
+    def _choose_section(self, message: Message) -> None:
+        if message.text not in self.SECTION_CHOICES.values():
+            tele.bot.send_message(
+                self.sender_id,
+                text='\U00002b07\U0000fe0f - выберите направление',
+                reply_markup=self.section_markup,
+            )
+            tele.bot.register_next_step_handler(message, self._choose_section)
+        else:
+            # TODO: this crunch can be fixed when the custom Message with `meta` parameter will be implemented
+            target_section = None
+            for section, section_message in self.SECTION_CHOICES.items():
+                if section_message == message.text:
+                    target_section = section
+
+            tele.bot.send_message(
+                self.sender_id,
+                text='\U0001F5D3 - выберите период',
+                reply_markup=self._get_period_markup_for_statistics_type('general_values'),
+            )
+
+            tele.bot.register_next_step_handler(
+                message,
+                self._get_general_values_period_handler,
+                section=target_section,
+            )
+
+    def _choose_statistics_type(self, message: Message) -> None:
+        if message.text == self.STATISTICS_CHOICES['general_values']:
+            tele.bot.send_message(
+                self.sender_id,
+                text='\U00002b07\U0000fe0f - выберите направление',
+                reply_markup=self.section_markup,
+            )
+            tele.bot.register_next_step_handler(message, self._choose_section)
+        elif message.text == self.STATISTICS_CHOICES['key_values']:
+            tele.bot.send_message(
+                self.sender_id,
+                text='\U0001F5D3 - выберите период',
+                reply_markup=self._get_period_markup_for_statistics_type('key_values'),
+            )
+            tele.bot.register_next_step_handler(message, self._get_key_values_period_handler)
+        elif message.text == self.STATISTICS_CHOICES['funds_fulfillment']:
+            tele.bot.send_message(
+                self.sender_id,
+                text='\U0001F5D3 - выберите период',
+                reply_markup=self._get_period_markup_for_statistics_type('funds_fulfillment'),
+            )
+            tele.bot.register_next_step_handler(message, self._get_budget_fulfillment_values_period_handler)
+        elif message.text == self.STATISTICS_CHOICES['leader']:
+            tele.bot.send_message(
+                self.sender_id,
+                text='\U0001F5D3 - выберите период',
+                reply_markup=self._get_period_markup_for_statistics_type('leader'),
+            )
+            tele.bot.register_next_step_handler(message, self._get_leader_period_handler)
+        elif message.text == self.STATISTICS_CHOICES['main_menu']:
+            tele.bot.send_message(
+                self.sender_id,
+                '\U000021a9\U0000fe0f - возврат в главное меню.',
+                reply_markup=tele.main_markup,
+            )
+        else:
+            tele.bot.send_message(self.sender_id, '\U00002b07\U0000fe0f - выберите действие.')
+            tele.bot.register_next_step_handler(message, self._choose_statistics_type)
+
+    def _get_period_markup_for_statistics_type(self, statistics_type: str) -> ReplyKeyboardMarkup:
+        markup = ReplyKeyboardMarkup(row_width=2)
+        for period in self.PERIOD_PER_STATISTICS_CHOICES[statistics_type]:
+            markup.add(InlineKeyboardButton(text=self.PERIOD_CHOICES[period]))
+
+        return markup
+
+    def _get_general_values_period_handler(self, message: Message, section: str) -> None:
+        if message.text == self.PERIOD_CHOICES['day']:
+            self.send_general_values_day(section)
+        elif message.text == self.PERIOD_CHOICES['week']:
+            self.send_general_values_week(section)
+        else:
+            tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
+            tele.bot.register_next_step_handler(message, self._get_general_values_period_handler)
+
+    def _get_budget_fulfillment_values_period_handler(self, message: Message) -> None:
+        if message.text == self.PERIOD_CHOICES['month']:
+            self.send_month_funds_fulfillment_values()
+        else:
+            tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
+            tele.bot.register_next_step_handler(message, self._get_budget_fulfillment_values_period_handler)
+
+    def _get_leader_period_handler(self, message: Message) -> None:
+        if message.text == self.PERIOD_CHOICES['day']:
+            self.send_leader_day()
+        else:
+            tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
+            tele.bot.register_next_step_handler(message, self._get_leader_period_handler)
+
+    def _get_key_values_period_handler(self, message: Message) -> None:
+        if message.text == self.PERIOD_CHOICES['accumulative']:
+            self.send_key_values_accumulative()
+        else:
+            tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
+            tele.bot.register_next_step_handler(message, self._get_key_values_period_handler)
+
+    def send_key_values_accumulative(self) -> None:
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+        key_values_data = get_key_values()
+
+        message_text = ['\U0001F511 - ДАННЫЕ ПО КЛЮЧЕВЫМ ПОКАЗАТЕЛЯМ\n']
+        for key_value_data in key_values_data.values():
+            message_text.append(f'{key_value_data["name"].upper()}\n')
+
+            for value in key_value_data['values']:
+                period, actual, planned = value
+                message_text.append(f'{period}\t\t\tфакт: {actual}\t\t\t{f"план: {planned}" if planned else ""}')
+            message_text.append('')
+
+        tele.bot.send_message(self.sender_id, '\n'.join(message_text), reply_markup=tele.main_markup)
+
+    def send_leader_day(self) -> None:
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+        leaders_for_today = get_leader()
+        if not leaders_for_today:
+            tele.bot.send_message(self.sender_id, '\U0001F9E2 - красавчиков дня нет.')
+        else:
+            tele.bot.send_message(
+                self.sender_id,
+                f'\U0001F451 - красавчики дня:\n{", ".join(leaders_for_today)}',
+                reply_markup=tele.main_markup,
+            )
+
+    def send_month_funds_fulfillment_values(self) -> None:
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+
+        requested_by_admin = user_has_admin_permission(self.sender_id)
+        funds_data = get_funds_statistics(full=True if requested_by_admin else False)
+
+        message_text = ['\U0001F4CA - ДАННЫЕ ПО ФОНДАМ\n']
+        for fund_name, fund_data in funds_data.items():
+            actual, planned = fund_data
+            message_text.append(f'{fund_name}:')
+            message_text.append(f'[факт] {actual} : {planned} [план]\n')
+
+        tele.bot.send_message(self.sender_id, '\n'.join(message_text), reply_markup=tele.main_markup)
+
+    # TODO: implement weekly statistics functionality
+    def send_general_values_week(self, section=None) -> None:
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+
+        messages_batch = ['\U0001F4C6 - СТАТИСТИКА ЗА НЕДЕЛЮ\n\n']
+
+        ...
+
+    def send_general_values_day(self, section=None) -> None:
+        """TODO"""
+
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+
+        data = get_statistic_for_today(filter_by_section=section)
+
+        messages_batch = ['\U0001F4C5 - СТАТИСТИКА ЗА ДЕНЬ']
+
+        for section_name, section_data in data.items():
+            section_messages = [f'\n\n{section_name.upper()}\n']
+
+            section_messages.append('\U000027A1 - Суммарно\n')
+            for statistic_item in section_data['total']:
+                name, value = statistic_item
+                section_messages.append(f'{name.capitalize()}: {value}')
+
+            section_messages.append('\n\U000027A1 - По сотрудникам')
+            for statistic_item_name, employees_list in section_data['per_employee'].items():
+                section_messages.append(f'\n{statistic_item_name.capitalize()}')
+                for employee in employees_list:
+                    employee_name, value = employee
+                    section_messages.append(f'\t\t\t{employee_name}: {value}')
+
+            messages_batch.append('\n'.join(section_messages))
+
+        result_message = '\n'.join(messages_batch)
+        tele.bot.send_message(self.sender_id, result_message, reply_markup=tele.main_markup)
+
+    def send_statistics(self, message: Message) -> None:
+        """TODO"""
+
+        tele.bot.send_message(
+            self.sender_id,
+            text='\U00002b07\U0000fe0f - выберите направление',
+            reply_markup=self.statistics_markup,
+        )
+        tele.bot.register_next_step_handler(message, self._choose_statistics_type)
