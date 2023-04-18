@@ -65,7 +65,7 @@ class StatisticsHandler:
             tele.bot.register_next_step_handler(
                 message,
                 self._get_general_values_period_handler,
-                section=target_section,
+                section_id=target_section,
             )
 
     def _choose_statistics_type(self, message: Message) -> None:
@@ -114,11 +114,11 @@ class StatisticsHandler:
 
         return markup
 
-    def _get_general_values_period_handler(self, message: Message, section: str) -> None:
+    def _get_general_values_period_handler(self, message: Message, section_id: str) -> None:
         if message.text == self.PERIOD_CHOICES['day']:
-            self.send_general_values_day(section)
+            self.send_general_values_day(section_id=section_id)
         elif message.text == self.PERIOD_CHOICES['week']:
-            self.send_general_values_week(section)
+            self.send_general_values_week(section_id=section_id)
         else:
             tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
             tele.bot.register_next_step_handler(message, self._get_general_values_period_handler)
@@ -186,40 +186,46 @@ class StatisticsHandler:
         tele.bot.send_message(self.sender_id, '\n'.join(message_text), reply_markup=tele.main_markup)
 
     # TODO: implement weekly statistics functionality
-    def send_general_values_week(self, section=None) -> None:
+    def send_general_values_week(self, section_id=None) -> None:
         tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
 
         messages_batch = ['\U0001F4C6 - СТАТИСТИКА ЗА НЕДЕЛЮ\n\n']
 
         ...
 
-    def send_general_values_day(self, section=None) -> None:
-        """TODO"""
-
-        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
-
-        data = get_statistic_for_today(filter_by_section=section)
-
+    @staticmethod
+    def build_result_message_general_values_day(
+            data: dict[str, dict[list[tuple[str, list] | dict[str, str | list]]]]
+    ) -> str:
         messages_batch = ['\U0001F4C5 - СТАТИСТИКА ЗА ДЕНЬ']
 
         for section_name, section_data in data.items():
             section_messages = [f'\n\n{section_name.upper()}\n']
 
-            section_messages.append('\U000027A1 - Суммарно\n')
+            section_messages.append('\U00002b07\U0000fe0f - Суммарно\n')
             for statistic_item in section_data['total']:
                 name, value = statistic_item
                 section_messages.append(f'{name.capitalize()}: {value}')
 
-            section_messages.append('\n\U000027A1 - По сотрудникам')
-            for statistic_item_name, employees_list in section_data['per_employee'].items():
-                section_messages.append(f'\n{statistic_item_name.capitalize()}')
-                for employee in employees_list:
-                    employee_name, value = employee
-                    section_messages.append(f'\t\t\t{employee_name}: {value}')
+            section_messages.append('\n\U00002b07\U0000fe0f - По сотрудникам')
+            for users_statistics in section_data['per_employee']:
+                section_messages.append(f'\n{users_statistics["full_name"]}')
+                for statistic_item_data in users_statistics['statistics']:
+                    item_name, item_value = statistic_item_data
+                    section_messages.append(f'\t\t\t{item_name}: {item_value}')
 
             messages_batch.append('\n'.join(section_messages))
 
-        result_message = '\n'.join(messages_batch)
+        return '\n'.join(messages_batch)
+
+    def send_general_values_day(self, section_id=None) -> None:
+        """TODO"""
+
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+
+        data = get_statistic_for_today(filter_by_section_id=section_id)
+        result_message = self.build_result_message_general_values_day(data=data)
+
         tele.bot.send_message(self.sender_id, result_message, reply_markup=tele.main_markup)
 
     def send_statistics(self, message: Message) -> None:

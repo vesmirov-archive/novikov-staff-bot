@@ -1,23 +1,26 @@
 from datetime import date
-from typing import Union, Optional
+from typing import Union, Optional, Any
 
 from sheets.utils import get_actual_row_for_section
 from settings import settings
 from sheets.tools import update_cell_value, get_cells_values
 
 
-def get_user_statistic_for_today(
+def get_user_statistics_for_today(
         user_id: str,
-        filter_by_section: Optional[str],
+        filter_by_section_id: Optional[str] = None,
 ) -> dict[str, Union[str, dict[str, str]]]:
     """
-    TODO
+    Extracts statistics for the specified user according to the configuration file.
+
+    :user_id: id of the user which statistics data should be extracted
+    :filter_by_section_id: section id which should be filtered
 
     Return value sample:
     {
-        '0': {'name': 'statistic_item_1', 'section': 'first_section_name', 'value': 1},
-        '1': {'name': 'statistic_item_2', 'section': 'first_section_name', 'value': 2},
-        '2': {'name': 'statistic_item_3', 'section': 'second_section_name', 'value': 3},
+        '0': {'item_name': 'statistic_item_1', 'section': 'first_section_name', 'value': 1},
+        '1': {'item_name': 'statistic_item_2', 'section': 'first_section_name', 'value': 2},
+        '2': {'item_name': 'statistic_item_3', 'section': 'second_section_name', 'value': 3},
         ...
     }
     """
@@ -26,11 +29,11 @@ def get_user_statistic_for_today(
 
     columns_per_section = {}
     for item_number, item_data in settings.config['employees'][user_id]['statistics'].items():
-        if filter_by_section and item_data['section'] != filter_by_section:
+        if filter_by_section_id and item_data['section'] != filter_by_section_id:
             continue
         columns_per_section.setdefault(item_data['section'], []).append(item_data['column'])
         result[item_number] = {
-            'name': item_data['name'],
+            'item_name': item_data['name'],
             'section': item_data['section'],
         }
 
@@ -51,32 +54,46 @@ def get_user_statistic_for_today(
     return result
 
 
-def get_statistic_for_today(filter_by_section: Optional[str] = None) -> dict[str, dict[str, dict]]:
+def get_statistic_for_today(
+        filter_by_section_id: Optional[str] = None,
+) -> dict[str, dict[list[tuple[str, list] | dict[str, str | list]]]]:
     """
     TODO
 
     Return value sample:
     {
         'first_section_name': {
-            'per_employee': {
-                'statistic_item_1': [
-                    ('First User', '1'),
-                    ('Second User', '1'),
-                ],
-                'statistic_item_2': [
-                    ('First User', '1'),
-                ],
-                'statistic_item_3': [
-                    ('First User', '1'),
-                    ('Second User', '1'),
-                    ('Third User', '1')
-                ],
-            },
             'total': [
                 ('statistic_item_1', '2'),
-                ('statistic_item_2', '1'),
-                ('statistic_item_3', '3'),
-            ]
+                ('statistic_item_2', '3'),
+                ('statistic_item_3', '1'),
+                ('statistic_item_4', '1'),
+                ('statistic_item_5', '1'),
+            ],
+            'per_employee': [
+                {
+                    'full_name': 'Full Name 1',
+                    'statistics': [
+                        ('statistic_item_1', '1'),
+                        ('statistic_item_2', '1')
+                    ],
+                },
+                {
+                    'full_name': 'Full Name 2',
+                    'statistics': [
+                        ('statistic_item_1', '1'),
+                        ('statistic_item_2', '2'),
+                    ],
+                ),
+                }
+                    'full_name': 'Full Name 3',
+                    'statistics': [
+                        ('statistic_item_3', '1'),
+                        ('statistic_item_4', '1'),
+                        ('statistic_item_5', '1'),
+                    ],
+                },
+            ],
         },
         'second_section_name': {
         ...
@@ -86,43 +103,44 @@ def get_statistic_for_today(filter_by_section: Optional[str] = None) -> dict[str
     result = {}
 
     # fill with total values
-    for section, data in settings.config['sections'].items():
-        section_name = settings.config['sections'][section]['name']
+    for section_id, data in settings.config['sections'].items():
+        section_name = settings.config['sections'][section_id]['name']
 
-        if filter_by_section and section != filter_by_section:
+        if filter_by_section_id and section_id != filter_by_section_id:
             continue
 
-        names, columns = [], []
+        items_names, sheet_columns = [], []
         for statistic_item in data['statistics']['period']['day'].values():
-            names.append(statistic_item['name'])
-            columns.append(statistic_item['column'])
+            items_names.append(statistic_item['name'])
+            sheet_columns.append(statistic_item['column'])
 
         values = get_cells_values(
             table_id=data['google']['table'],
             sheet_id=data['google']['sheet'],
-            columns=columns,
-            row=str(get_actual_row_for_section(section))
+            columns=sheet_columns,
+            row=str(get_actual_row_for_section(section_id))
         )
-        total_data = list(zip(names, values))
+        total_data = list(zip(items_names, values))
 
-        result.setdefault(section_name, {}).update({'total': total_data, 'per_employee': {}})
+        result.setdefault(section_name, {}).update({'total': total_data})
 
-    # fill with employee values
-    for user_id, user_data in settings.config['employees'].items():
-        if not user_data['statistics']:
-            continue
+        users_results = []
+        for user_id, user_data in settings.config['employees'].items():
+            if not user_data['statistics']:
+                continue
 
-        user_statistic = get_user_statistic_for_today(
-            user_id=user_id,
-            filter_by_section=filter_by_section,
-        )
-        for item_data in user_statistic.values():
-            section_name = settings.config['sections'][item_data['section']]['name']
-            result[section_name]['per_employee'].setdefault(
-                item_data['name'], [],
-            ).append(
-                (f'{user_data["firstname"]} {user_data["lastname"]}', item_data['value']),
-            )
+            user_statistics = get_user_statistics_for_today(user_id=user_id, filter_by_section_id=section_id)
+
+            if not user_statistics.values():
+                continue
+
+            user_result = {
+                'full_name': f'{user_data["firstname"]} {user_data["lastname"]}',
+                'statistics': [(item['item_name'], item['value']) for item in user_statistics.values()],
+            }
+            users_results.append(user_result)
+
+        result[section_name]['per_employee'] = users_results
 
     return result
 
