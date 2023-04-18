@@ -1,3 +1,5 @@
+from ctypes import Union
+
 from telebot.types import Message, ReplyKeyboardMarkup, InlineKeyboardButton
 
 from settings import settings, telegram as tele
@@ -195,7 +197,7 @@ class StatisticsHandler:
 
     @staticmethod
     def build_result_message_general_values_day(
-            data: dict[str, dict[list[tuple[str, list] | dict[str, str | list]]]]
+            data: dict[str, dict[list[Union[tuple[str, list], dict[str, Union[str, list]]]]]]
     ) -> str:
         messages_batch = ['\U0001F4C5 - СТАТИСТИКА ЗА ДЕНЬ']
 

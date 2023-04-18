@@ -56,7 +56,7 @@ def get_user_statistics_for_today(
 
 def get_statistic_for_today(
         filter_by_section_id: Optional[str] = None,
-) -> dict[str, dict[list[tuple[str, list] | dict[str, str | list]]]]:
+) -> dict[str, dict[list[Union[tuple[str, list], dict[str, Union[str, list]]]]]]:
     """
     TODO
 
