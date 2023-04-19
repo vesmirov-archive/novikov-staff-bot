@@ -3,8 +3,8 @@ from typing import Any
 from telebot.types import Message, ReplyKeyboardMarkup, InlineKeyboardButton
 
 from settings import settings, telegram as tele
-from sheets.handlers.other import get_funds_statistics, get_leader, get_key_values
-from sheets.handlers.statistics import get_statistic_for_today
+from sheets.handlers.other import get_funds_statistics, get_leader
+from sheets.handlers.statistics import get_statistic_for_today, get_key_values
 from utils.users import user_has_admin_permission
 
 
@@ -146,20 +146,25 @@ class StatisticsHandler:
             tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
             tele.bot.register_next_step_handler(message, self._get_key_values_period_handler)
 
-    def send_key_values_accumulative(self) -> None:
-        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
-        key_values_data = get_key_values()
-
-        message_text = ['\U0001F511 - ДАННЫЕ ПО КЛЮЧЕВЫМ ПОКАЗАТЕЛЯМ\n']
-        for key_value_data in key_values_data.values():
-            message_text.append(f'{key_value_data["name"].upper()}\n')
+    @staticmethod
+    def build_result_message_key_values_accumulative(data: dict[str, dict[str, tuple[str, str, str]]]):
+        messages_batch = ['\U0001F511 - ДАННЫЕ ПО КЛЮЧЕВЫМ ПОКАЗАТЕЛЯМ\n']
+        for key_value_data in data.values():
+            messages_batch.append(f'\U0001f4cb - {key_value_data["name"].upper()}\n')
 
             for value in key_value_data['values']:
                 period, actual, planned = value
-                message_text.append(f'{period}\t\t\tфакт: {actual}\t\t\t{f"план: {planned}" if planned else ""}')
-            message_text.append('')
+                messages_batch.append(f'{period} -> [факт] {actual} {f": {planned} [план]" if planned else ""}')
+            messages_batch.append('')
+        return '\n'.join(messages_batch)
 
-        tele.bot.send_message(self.sender_id, '\n'.join(message_text), reply_markup=tele.main_markup)
+    def send_key_values_accumulative(self) -> None:
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+
+        key_values_data = get_key_values()
+        result_message = self.build_result_message_key_values_accumulative(key_values_data)
+
+        tele.bot.send_message(self.sender_id, result_message, reply_markup=tele.main_markup)
 
     def send_leader_day(self) -> None:
         tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
