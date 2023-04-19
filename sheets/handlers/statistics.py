@@ -1,9 +1,9 @@
 from datetime import date
 from typing import Union, Optional, Any
 
-from sheets.utils import get_actual_row_for_section
 from settings import settings
 from sheets.tools import update_cell_value, get_cells_values
+from sheets.utils import get_actual_row_for_section
 
 
 def get_user_statistics_for_today(
@@ -54,9 +54,7 @@ def get_user_statistics_for_today(
     return result
 
 
-def get_statistic_for_today(
-        filter_by_section_id: Optional[str] = None,
-) -> dict[str, dict[list[Union[tuple[str, list], dict[str, Union[str, list]]]]]]:
+def get_statistic_for_today(filter_by_section_id: Optional[str] = None) -> dict[str, Any]:
     """
     TODO
 
