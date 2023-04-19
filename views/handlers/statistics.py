@@ -164,14 +164,13 @@ class StatisticsHandler:
     def send_leader_day(self) -> None:
         tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
         leaders_for_today = get_leader()
-        if not leaders_for_today:
-            tele.bot.send_message(self.sender_id, '\U0001F9E2 - красавчиков дня нет.')
+
+        if leaders_for_today:
+            message_text = f'\U0001F451 - красавчики дня:\n{", ".join(leaders_for_today)}'
         else:
-            tele.bot.send_message(
-                self.sender_id,
-                f'\U0001F451 - красавчики дня:\n{", ".join(leaders_for_today)}',
-                reply_markup=tele.main_markup,
-            )
+            message_text = '\U0001F9E2 - красавчиков дня нет.'
+
+        tele.bot.send_message(self.sender_id, message_text, reply_markup=tele.main_markup)
 
     def send_month_funds_fulfillment_values(self) -> None:
         tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
