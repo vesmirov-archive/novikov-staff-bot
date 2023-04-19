@@ -25,25 +25,12 @@ def send_statistics_for_day() -> None:
     """TODO"""
 
     # general values
-    data = statistics.get_statistic_for_today()
-    statistics_result_message = StatisticsHandler.build_result_message_general_values_day(data=data)
+    general_values_data = statistics.get_statistic_for_today()
+    general_values_result_message = StatisticsHandler.build_result_message_general_values_day(data=general_values_data)
 
     # key values
-    # TODO: DRY (use the sample above)
-    key_values_data = other.get_key_values()
-
-    key_values_messages_batch = ['\U0001F511 - ДАННЫЕ ПО КЛЮЧЕВЫМ ПОКАЗАТЕЛЯМ\n']
-    for key_value_data in key_values_data.values():
-        key_values_messages_batch.append(f'{key_value_data["name"].upper()}\n')
-
-        for value in key_value_data['values']:
-            period, actual, planned = value
-            key_values_messages_batch.append(
-                f'{period}\t\t\tфакт: {actual}\t\t\t{f"план: {planned}" if planned else ""}',
-            )
-        key_values_messages_batch.append('')
-
-    key_values_result_message = '\n'.join(key_values_messages_batch)
+    key_values_data = statistics.get_key_values()
+    key_values_result_message = StatisticsHandler.build_result_message_key_values_accumulative(data=key_values_data)
 
     # funds fulfillment values
     # TODO: DRY (use the sample above)
@@ -80,7 +67,7 @@ def send_statistics_for_day() -> None:
     for user_id in users.get_statistics_subscribers_list():
         sending_to_admin = users.user_has_admin_permission(user_id)
         try:
-            tele.bot.send_message(user_id, statistics_result_message)
+            tele.bot.send_message(user_id, general_values_result_message)
             tele.bot.send_message(user_id, key_values_result_message)
             tele.bot.send_message(user_id, funds_admin_result_message if sending_to_admin else funds_result_message)
             tele.bot.send_message(user_id, leaders_for_today_result_message)
