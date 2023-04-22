@@ -216,7 +216,7 @@ class StatisticsHandler:
                 section_messages.append(f'\n{users_statistics["full_name"]}')
                 for statistic_item_data in users_statistics['statistics']:
                     item_name, item_value = statistic_item_data
-                    section_messages.append(f'\t\t\t{item_name}: {item_value}')
+                    section_messages.append(f'\t\t\t{item_name}: {item_value if item_value else "0"}')
 
             messages_batch.append('\n'.join(section_messages))
 
