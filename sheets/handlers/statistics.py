@@ -28,7 +28,7 @@ def get_user_statistics_for_today(
     result = {}
 
     columns_per_section = {}
-    for item_number, item_data in settings.config['employees'][user_id]['statistics'].items():
+    for item_number, item_data in settings.config['employees'][user_id]['statistics']['kpi'].items():
         if filter_by_section_id and item_data['section'] != filter_by_section_id:
             continue
         columns_per_section.setdefault(item_data['section'], []).append(item_data['column'])
@@ -150,9 +150,9 @@ def prepare_kpi_keys_and_questions(employee_id: Union[int, str]) -> tuple[list[s
     day_of_the_week_today = date.weekday(date.today())
     kpi_keys, kpi_questions = [], []
 
-    employee_kpi_data = settings.config['employees'][employee_id]['statistics']
-    if employee_kpi_data:
-        for kpi_key, kpi_data in settings.config['employees'][employee_id]['statistics'].items():
+    employee_statistics_data = settings.config['employees'][employee_id]['statistics']
+    if employee_statistics_data:
+        for kpi_key, kpi_data in employee_statistics_data['kpi'].items():
             if day_of_the_week_today in kpi_data['schedule']:
                 kpi_keys.append(kpi_key)
                 kpi_questions.append(kpi_data['question'])
@@ -165,7 +165,7 @@ def update_employee_kpi(employee_id: Union[int, str], kpi_values: list[tuple[str
 
     employee_id = str(employee_id)
     for kpi_key, value_to_update in kpi_values:
-        kpi_item = settings.config['employees'][employee_id]['statistics'][kpi_key]
+        kpi_item = settings.config['employees'][employee_id]['statistics']['kpi'][kpi_key]
         section_google_data = settings.config['sections'][kpi_item['section']]['google']
 
         update_cell_value(
