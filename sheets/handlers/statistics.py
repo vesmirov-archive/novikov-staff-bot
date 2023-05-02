@@ -1,9 +1,13 @@
+import datetime
 from datetime import date
+from logging import getLogger
 from typing import Union, Optional, Any
 
 from settings import settings
 from sheets.tools import update_cell_value, get_cells_values, get_cell_value
 from sheets.utils import get_actual_row_for_section
+
+logger = getLogger(__name__)
 
 
 def get_user_statistics_for_today(
@@ -219,3 +223,9 @@ def get_key_values() -> dict[str, dict[str, tuple[str, str, str]]]:
 
     return result
 
+
+def add_disbonus_for_user(user_id: str, disbonus_id: str) -> None:
+    try:
+        ...
+    except KeyError:
+        logger.exception(f'user with ID: {user_id} does not have a disbonus with the next id: {disbonus_id}')
