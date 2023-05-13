@@ -20,7 +20,7 @@ class StatisticsHandler:
     }
     PERIOD_CHOICES = {
         'day': '\U00000031\U0000FE0F\U000020E3 - день',
-        'week': '\U00000037\U0000FE0F\U000020E3 - неделя',
+        # 'week': '\U00000037\U0000FE0F\U000020E3 - неделя',
         'month': '\U0001f522 - месяц',
         'accumulative': '\U0001F520 - акумулятивно',
     }
@@ -119,8 +119,8 @@ class StatisticsHandler:
     def _get_general_values_period_handler(self, message: Message, section_id: str) -> None:
         if message.text == self.PERIOD_CHOICES['day']:
             self.send_general_values_day(section_id=section_id)
-        elif message.text == self.PERIOD_CHOICES['week']:
-            self.send_general_values_week(section_id=section_id)
+        # elif message.text == self.PERIOD_CHOICES['week']:
+        #     self.send_general_values_week(section_id=section_id)
         else:
             tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
             tele.bot.register_next_step_handler(message, self._get_general_values_period_handler)
