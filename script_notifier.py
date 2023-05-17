@@ -12,6 +12,7 @@ from telebot.apihelper import ApiTelegramException
 from settings import telegram as tele
 from sheets.handlers import statistics, other
 from utils import users
+from views.handlers.kpi import KPIHandler
 from views.handlers.statistics import StatisticsHandler
 
 logger = logging.getLogger(__name__)
@@ -64,12 +65,16 @@ def send_statistics_for_day() -> None:
     else:
         leaders_for_today_result_message = f'\U0001F451 - красавчики сегодня:\n{", ".join(leaders_for_today)}'
 
+    # bonus values
+    users_bonus_values = KPIHandler.build_result_message_bonuses()
+
     for user_id in users.get_statistics_subscribers_list():
         sending_to_admin = users.user_has_admin_permission(user_id)
         try:
             tele.bot.send_message(user_id, general_values_result_message)
             tele.bot.send_message(user_id, key_values_result_message)
             tele.bot.send_message(user_id, funds_admin_result_message if sending_to_admin else funds_result_message)
+            tele.bot.send_message(user_id, users_bonus_values)
             tele.bot.send_message(user_id, leaders_for_today_result_message)
         except ApiTelegramException:
             logger.exception('Sending scheduled day statistics to user failed', extra={'user_id': user_id})
