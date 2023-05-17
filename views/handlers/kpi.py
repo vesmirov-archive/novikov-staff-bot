@@ -2,6 +2,7 @@ from typing import Union, Optional
 
 from telebot.types import Message, ReplyKeyboardMarkup, InlineKeyboardButton
 
+from sheets.handlers.disbonuses import get_user_actual_bonus_value, update_disbonus_for_user
 from sheets.handlers.statistics import update_employee_kpi, prepare_kpi_keys_and_questions
 from settings import settings, telegram as tele
 from utils.statistics import get_user_disbonus_data
@@ -32,15 +33,23 @@ class KPIHandler:
             disbonus_map: dict[str, str],
     ) -> None:
         if message.text == self.DISBONUS_COMMON_CHOICES['quit']:
+            user_actual_bonus_value = get_user_actual_bonus_value(user_id=self.sender_id)
+
             tele.bot.send_message(
                 chat_id=self.sender_id,
-                text='\U00002705 - данные внесены. Хорошего вечера!',
+                text=f'\U00002705 - данные внесены. Ваш бонусный баланс: {user_actual_bonus_value}. Хорошего вечера!',
                 reply_markup=tele.main_markup,
             )
 
             return
 
         if message.text in disbonus_map.values():
+
+            # FIXME
+            for disbonus_id, disbonus_name in disbonus_map.items():
+                if disbonus_name == message.text:
+                    target_disbonus_id = disbonus_id
+
             target_disbonus: Optional[str] = None
             keyboard: list[list[dict[str, str]]] = self.disbonus_personal_markup.keyboard
 
@@ -51,7 +60,8 @@ class KPIHandler:
                     break
 
             if target_disbonus:
-                # TODO: call spreadsheet handler
+                tele.bot.send_message(chat_id=self.sender_id, text='\U0001f552 - Вношу данные.')
+                update_disbonus_for_user(user_id=self.sender_id, disbonus_id=target_disbonus_id, disbonus_value=1)
 
                 tele.bot.send_message(
                     chat_id=self.sender_id,
@@ -61,7 +71,7 @@ class KPIHandler:
             else:
                 tele.bot.send_message(
                     chat_id=self.sender_id,
-                    text='\U00002b07\U0000fe0f - выберите',
+                    text='\U00002b07\U0000fe0f - выберите соответствующие дисбонусы, или закончите ввод.',
                 )
         else:
             tele.bot.send_message(
@@ -85,9 +95,11 @@ class KPIHandler:
             )
             tele.bot.register_next_step_handler(message, self._handle_disbonuses, user_data, disbonus_map)
         elif message.text == self.YES_NO_CHOICES['no']:
+            user_actual_bonus_value = get_user_actual_bonus_value(user_id=self.sender_id)
+
             tele.bot.send_message(
                 chat_id=self.sender_id,
-                text='\U00002705 - данные внесены. Хорошего вечера!',
+                text=f'\U00002705 - данные внесены. Ваш бонусный баланс: {user_actual_bonus_value}. Хорошего вечера!',
                 reply_markup=tele.main_markup,
             )
         else:
@@ -137,3 +149,18 @@ class KPIHandler:
         tele.bot.send_message(self.sender_id, text)
 
         tele.bot.register_next_step_handler(message, self._parse_answer, kpi_keys)
+
+    @staticmethod
+    def build_result_message_bonuses() -> str:
+        user_ids = [
+            (str(user_id), f'{user_data["firstname"]} {user_data["lastname"]}')
+            for user_id, user_data in settings.config['employees'].items()
+            if user_data['bonuses']
+        ]
+
+        messages_batch = ['\U0001f4b0 - бонусный баланс по сотрудникам:\n']
+        for user_id, user_name in user_ids:
+            user_bonus_value = get_user_actual_bonus_value(user_id=user_id)
+            messages_batch.append(f'\t\t\t{user_name} -> {user_bonus_value}')
+
+        return '\n'.join(messages_batch)

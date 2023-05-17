@@ -20,14 +20,14 @@ class StatisticsHandler:
     }
     PERIOD_CHOICES = {
         'day': '\U00000031\U0000FE0F\U000020E3 - день',
-        # 'week': '\U00000037\U0000FE0F\U000020E3 - неделя',
+        'week': '\U00000037\U0000FE0F\U000020E3 - неделя',
         'month': '\U0001f522 - месяц',
         'accumulative': '\U0001F520 - акумулятивно',
     }
     SECTION_CHOICES = {section: f"\U0001f5c2 - {data['name']}" for section, data in settings.config['sections'].items()}
 
     PERIOD_PER_STATISTICS_CHOICES = {
-        'general_values': ['day', 'week'],
+        'general_values': ['day'],
         'key_values': ['accumulative'],
         'funds_fulfillment': ['month'],
         'leader': ['day'],
