@@ -24,7 +24,6 @@ args = parser.parse_args()
 
 def send_statistics_for_day() -> None:
     """TODO"""
-
     # general values
     general_values_data = statistics.get_statistic_for_today()
     general_values_result_message = StatisticsHandler.build_result_message_general_values_day(data=general_values_data)
@@ -82,25 +81,33 @@ def send_statistics_for_day() -> None:
 
 def send_statistics_for_week() -> None:
     """TODO"""
-
     ...
 
 
-def send_statistics_reminder() -> None:
+def send_kpi_reminder() -> None:
     """TODO"""
-
-    ...
+    users_ids = KPIHandler.get_users_ids_with_empty_kpi_data()
+    for user_id in users_ids:
+        try:
+            tele.bot.send_message(
+                user_id,
+                '\U0000270C️ - Не забудьте заполнить статистику за сегодняшний день, если еще не! :)',
+            )
+        except ApiTelegramException:
+            logger.exception(
+                'Sending a reminder to fill kpi failed.',
+                extra={'user_id': user_id, 'users_ids': users_ids},
+            )
 
 
 def handle_action() -> None:
     """TODO"""
-
     if args.action == 'statistics-day':
         send_statistics_for_day()
     elif args.action == 'statistics-week':
         send_statistics_for_week()
-    elif args.action == 'send-statistics-reminder':
-        send_statistics_reminder()
+    elif args.action == 'send-kpi-reminder':
+        send_kpi_reminder()
 
 
 if __name__ == '__main__':
