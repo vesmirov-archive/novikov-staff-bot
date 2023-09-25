@@ -9,6 +9,8 @@ from utils.statistics import get_user_disbonus_data
 
 
 class KPIHandler:
+    """TODO: docstring"""
+
     YES_NO_CHOICES = {
         'yes': '\U00002705 - да',
         'no': '\U0000274c - нет',
@@ -135,6 +137,7 @@ class KPIHandler:
         tele.bot.register_next_step_handler(message, self._manage_disbonuses_question)
 
     def receive_kpi(self, message: Message):
+        """TODO: docstring"""
         kpi_keys, kpi_questions = prepare_kpi_keys_and_questions(self.sender_id)
         if len(kpi_keys) == 0:
             tele.bot.send_message(
@@ -152,6 +155,7 @@ class KPIHandler:
 
     @staticmethod
     def build_result_message_bonuses() -> str:
+        """TODO: docstring"""
         user_ids = [
             (str(user_id), f'{user_data["firstname"]} {user_data["lastname"]}')
             for user_id, user_data in settings.config['employees'].items()
@@ -164,3 +168,17 @@ class KPIHandler:
             messages_batch.append(f'\t\t\t{user_name} -> {user_bonus_value}')
 
         return '\n'.join(messages_batch)
+
+    @staticmethod
+    def get_users_ids_with_empty_kpi_data() -> list[str]:
+        """
+        TODO: currently a plug and returns all users who's kpi is being tracked.
+        Should be refactored to return only users who's kpi is not filled yet.
+        """
+        users_with_empty_kpi_data: list[str] = [
+            user_id
+            for user_id, user_data in settings.config['employees'].items()
+            if user_data['kpi']
+        ]
+
+        return users_with_empty_kpi_data

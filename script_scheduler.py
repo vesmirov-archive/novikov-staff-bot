@@ -18,8 +18,14 @@ def main():
     cwd = os.getcwd()
 
     # notifier
-    notify = cron.new(command=f'{cwd}/.venv/bin/python {cwd}/script_notifier.py -a statistics-day')
-    notify.setall('0 21 * * 1-5')
+    cron.new(
+        command=f'{cwd}/.venv/bin/python {cwd}/script_notifier.py -a statistics-day',
+    ).setall('0 21 * * 1-5')
+
+    # reminder
+    cron.new(
+        command=f'{cwd}/.venv/bin/python {cwd}/script_notifier.py -a send-kpi-reminder',
+    ).setall('0 19 * * 1-5')
 
     cron.write()
 
