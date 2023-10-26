@@ -88,7 +88,6 @@ def send_kpi_reminder() -> None:
     """TODO"""
     users_ids = KPIHandler.get_users_ids_with_empty_kpi_data()
     for user_id in users_ids:
-        print(user_id)
         try:
             tele.bot.send_message(
                 user_id,
