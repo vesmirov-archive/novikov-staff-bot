@@ -4,7 +4,7 @@ from telebot.types import Message, ReplyKeyboardMarkup, InlineKeyboardButton
 
 from settings import settings, telegram as tele
 from sheets.handlers.other import get_funds_statistics, get_leader
-from sheets.handlers.statistics import get_statistic_for_today, get_key_values
+from sheets.handlers.statistics import get_statistic_accumulate, get_statistic_for_today, get_key_values
 from utils.users import user_has_admin_permission
 
 
@@ -27,7 +27,7 @@ class StatisticsHandler:
     SECTION_CHOICES = {section: f"\U0001f5c2 - {data['name']}" for section, data in settings.config['sections'].items()}
 
     PERIOD_PER_STATISTICS_CHOICES = {
-        'general_values': ['day'],
+        'general_values': ['day', 'accumulative'],
         'key_values': ['accumulative'],
         'funds_fulfillment': ['month'],
         'leader': ['day'],
@@ -121,6 +121,8 @@ class StatisticsHandler:
             self.send_general_values_day(section_id=section_id)
         # elif message.text == self.PERIOD_CHOICES['week']:
         #     self.send_general_values_week(section_id=section_id)
+        elif message.text == self.PERIOD_CHOICES['accumulative']:
+            self.send_general_values_accumulative(section_id=section_id)
         else:
             tele.bot.send_message(self.sender_id, '\U0001F5D3 - выберите период.')
             tele.bot.register_next_step_handler(message, self._get_general_values_period_handler)
@@ -230,6 +232,16 @@ class StatisticsHandler:
         data = get_statistic_for_today(filter_by_section_id=section_id)
         result_message = self.build_result_message_general_values_day(data=data)
 
+        tele.bot.send_message(self.sender_id, result_message, reply_markup=tele.main_markup)
+
+    def send_general_values_accumulative(self, section_id=None) -> None:
+        """TODO"""
+
+        tele.bot.send_message(self.sender_id, '\U0001f552 - cобираю данные, подождите.')
+
+        data = get_statistic_accumulate(filter_by_section_id=section_id, accumulative=True)
+        # result_message = self.build_result_message_general_values_day(data=data)
+        #
         tele.bot.send_message(self.sender_id, result_message, reply_markup=tele.main_markup)
 
     def send_statistics(self, message: Message) -> None:

@@ -178,7 +178,7 @@ class KPIHandler:
         users_with_empty_kpi_data: list[str] = [
             user_id
             for user_id, user_data in settings.config['employees'].items()
-            if user_data['statistics'] is not None and user_data['statistics']['kpi'] is not None
+            if user_data['statistics'] is not None and user_data['statistics']['items'] is not None
         ]
 
         return users_with_empty_kpi_data

@@ -31,12 +31,12 @@ def get_user_statistics_for_today(
 
     columns_per_section = {}
     for item_number, item_data in settings.config['employees'][user_id]['statistics']['kpi'].items():
-        if filter_by_section_id and item_data['section'] != filter_by_section_id:
+        if filter_by_section_id and item_data['section_id'] != filter_by_section_id:
             continue
-        columns_per_section.setdefault(item_data['section'], []).append(item_data['column'])
+        columns_per_section.setdefault(item_data['section_id'], []).append(item_data['column'])
         result[item_number] = {
             'item_name': item_data['name'],
-            'section': item_data['section'],
+            'section': item_data['section_id'],
         }
 
     for section, columns in columns_per_section.items():
@@ -49,7 +49,7 @@ def get_user_statistics_for_today(
         )
         section_values_index = 0
         for item_number in result.keys():
-            if result[item_number]['section'] == section:
+            if result[item_number]['section_id'] == section:
                 result[item_number].update({'value': section_values[section_values_index]})
                 section_values_index += 1
 
@@ -99,7 +99,6 @@ def get_statistic_for_today(filter_by_section_id: Optional[str] = None) -> dict[
         ...
     }
     """
-
     result = {}
 
     # fill with total values
@@ -145,6 +144,156 @@ def get_statistic_for_today(filter_by_section_id: Optional[str] = None) -> dict[
     return result
 
 
+def get_statistic_accumulate(filter_by_section_id: Optional[str] = None) -> dict[str, Any]:
+    """
+    Return value sample:
+    {
+        'first_section_name': {
+            'total': {
+                'statistic_item_1: {
+                    'yesterday': '2',
+                    'today': '2',
+                    'week': '5',
+                    'month': '100',
+                    'year': '1000',
+                },
+                'statistic_item_2: {
+                    'yesterday': '3',
+                    'today': '2',
+                    'week': '5',
+                    'month': '100',
+                    'year': '1000',
+                },
+                'statistic_item_3: {
+                    'yesterday': '1',
+                    'today': '2',
+                    'week': '5',
+                    'month': '100',
+                    'year': '1000',
+                },
+                'statistic_item_4: {
+                    'yesterday': '1',
+                    'today': '2',
+                    'week': '5',
+                    'month': '100',
+                    'year': '1000',
+                },
+                'statistic_item_5: {
+                    'yesterday': '1',
+                    'today': '2',
+                    'week': '5',
+                    'month': '100',
+                    'year': '1000',
+                },
+            },
+            'per_employee': [
+                {
+                    'statistic_item_1': 'Statistic Item 1',
+                    'employees': [
+                        'employee_1': {
+                            'yesterday': '1',
+                            'today': '2',
+                            'week': '5',
+                            'month': '100',
+                            'year': '1000',
+                        },
+                    ],
+                },
+                {
+                    'statistic_item_2': 'Statistic Item 2',
+                    'employees': [
+                        'employee_1': {
+                            'yesterday': '1',
+                            'today': '2',
+                            'week': '5',
+                            'month': '100',
+                            'year': '1000',
+                        },
+                        'employee_2': {
+                            'yesterday': '1',
+                            'today': '2',
+                            'week': '5',
+                            'month': '100',
+                            'year': '1000',
+                        },
+                    ],
+                ),
+                }
+                    'statistic_item_3': 'Statistic Item 3',
+                    'employees': [
+                        'employee_1': {
+                            'yesterday': '1',
+                            'today': '2',
+                            'week': '5',
+                            'month': '100',
+                            'year': '1000',
+                        },
+                        'employee_2': {
+                            'yesterday': '1',
+                            'today': '2',
+                            'week': '5',
+                            'month': '100',
+                            'year': '1000',
+                        },
+                        'employee_3': {
+                            'yesterday': '1',
+                            'today': '2',
+                            'week': '5',
+                            'month': '100',
+                            'year': '1000',
+                        },
+                    ],
+                },
+            ],
+        },
+        'second_section_name': {
+        ...
+    }
+    """
+    result = {}
+
+    # fill with total values
+    for section_id, data in settings.config['sections'].items():
+        section_name = settings.config['sections'][section_id]['name']
+
+        if filter_by_section_id and section_id != filter_by_section_id:
+            continue
+
+        items_names, sheet_columns = [], []
+        for statistic_item in data['statistics']['period']['day'].values():
+            items_names.append(statistic_item['name'])
+            sheet_columns.append(statistic_item['column'])
+
+        values = get_cells_values(
+            table_id=data['google']['table'],
+            sheet_id=data['google']['sheet'],
+            columns=sheet_columns,
+            row=str(get_actual_row_for_section(section_id))
+        )
+        total_data = list(zip(items_names, values))
+
+        result.setdefault(section_name, {}).update({'total': total_data})
+
+        users_results = []
+        for user_id, user_data in settings.config['employees'].items():
+            if not user_data['statistics']:
+                continue
+
+            user_statistics = get_user_statistics_for_today(user_id=user_id, filter_by_section_id=section_id)
+
+            if not user_statistics.values():
+                continue
+
+            user_result = {
+                'full_name': f'{user_data["firstname"]} {user_data["lastname"]}',
+                'statistics': [(item['item_name'], item['value']) for item in user_statistics.values()],
+            }
+            users_results.append(user_result)
+
+        result[section_name]['per_employee'] = users_results
+
+    return result
+
 def prepare_kpi_keys_and_questions(employee_id: Union[int, str]) -> tuple[list[str], list[str]]:
     """TODO"""
 
@@ -154,7 +303,7 @@ def prepare_kpi_keys_and_questions(employee_id: Union[int, str]) -> tuple[list[s
 
     employee_statistics_data = settings.config['employees'][employee_id]['statistics']
     if employee_statistics_data:
-        for kpi_key, kpi_data in employee_statistics_data['kpi'].items():
+        for kpi_key, kpi_data in employee_statistics_data['items'].items():
             if day_of_the_week_today in kpi_data['schedule']:
                 kpi_keys.append(kpi_key)
                 kpi_questions.append(kpi_data['question'])
@@ -168,14 +317,14 @@ def update_employee_kpi(employee_id: Union[int, str], kpi_values: list[tuple[str
     employee_id = str(employee_id)
     for kpi_key, value_to_update in kpi_values:
         kpi_item = settings.config['employees'][employee_id]['statistics']['kpi'][kpi_key]
-        section_google_data = settings.config['sections'][kpi_item['section']]['google']
+        section_google_data = settings.config['sections'][kpi_item['section_id']]['google']
 
         update_cell_value(
             table_id=section_google_data['table'],
             sheet_id=section_google_data['sheet'],
             value=value_to_update,
             column=kpi_item['column'],
-            row=str(get_actual_row_for_section(kpi_item['section'])),
+            row=str(get_actual_row_for_section(kpi_item['section_id'])),
         )
 
 
